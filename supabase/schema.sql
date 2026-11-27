@@ -51,7 +51,7 @@ as $$ select exists (select 1 from public.admins where user_id = auth.uid()) $$;
 -- ---------------------------------------------------------------------
 create table if not exists public.settings (
   id int primary key default 1 check (id = 1),
-  title text not null default 'Calendrier de l’Avent • Transfo & Change',
+  title text not null default 'Le Calendrier de l’Avent de l’IA 🎄🤖',
   subtitle text not null default 'Chaque jour ouvré, grattez une case pour découvrir une astuce concrète, un usage Copilot ou une ressource utile en mission.',
   start_date date not null default '2026-12-01',
   end_date date not null default '2026-12-24',

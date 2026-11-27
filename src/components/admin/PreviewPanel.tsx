@@ -29,6 +29,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 }) => {
   const [date, setDate] = useState(preview?.date ?? realToday);
   const [includeDrafts, setIncludeDrafts] = useState(preview?.includeDrafts ?? true);
+  const [unlockAll, setUnlockAll] = useState(preview?.unlockAll ?? false);
 
   const slots = listWorkingDays(settings.start_date, settings.end_date);
   const weeks = groupByWeek(slots);
@@ -39,9 +40,9 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   const nextScheduled = scheduled[0]?.publish_date;
   const missingSoon = slots.filter((d) => d >= realToday && !cards.some((c) => c.publish_date === d && c.status === 'published'));
 
-  const apply = (d: string, drafts: boolean) => {
+  const apply = (d: string, drafts: boolean, unlock = unlockAll) => {
     if (!isISODate(d)) return;
-    onChangePreview({ date: d, includeDrafts: drafts });
+    onChangePreview({ date: d, includeDrafts: drafts, unlockAll: unlock });
     onShowFront();
   };
 
@@ -108,6 +109,15 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
             />
             Inclure les brouillons
           </label>
+          <label className="inline-flex items-center gap-2 text-xs font-bold cursor-pointer pb-2">
+            <input
+              type="checkbox"
+              checked={unlockAll}
+              onChange={(e) => setUnlockAll(e.target.checked)}
+              className="w-4 h-4 accent-[#DC2626]"
+            />
+            🔓 Tout déverrouiller (tester toutes les cases)
+          </label>
           <button
             type="button"
             disabled={!isISODate(date)}
@@ -130,6 +140,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         {preview && (
           <p className="text-xs font-bold text-[#0369A1] capitalize">
             Aperçu actif : {formatLongFR(preview.date)} {preview.includeDrafts ? '(brouillons inclus)' : '(publiées uniquement)'}
+            {preview.unlockAll ? ' — toutes les cases déverrouillées' : ''}
           </p>
         )}
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   Sparkles,
   BookOpen,
@@ -16,6 +16,7 @@ import {
   AdminPreview,
   AdventTip,
   CalendarSettings,
+  CardStyleId,
   CardRecord,
   TrackedEventType,
   Visitor,
@@ -70,6 +71,22 @@ type GridFilter = 'all' | 'to-scratch' | 'opened' | 'locked';
 const REFRESH_INTERVAL_MS = 60_000;
 
 const uniqSorted = (dates: string[]) => Array.from(new Set(dates)).sort();
+
+/** Christmas colours rotated on boxes that have no content yet. */
+const PLACEHOLDER_STYLES: CardStyleId[] = [
+  'neon-comic',
+  'deloitte-emerald',
+  'golden-ticket',
+  'holo-cyber',
+  'candy-pop',
+  'sunset-spark',
+];
+
+const WEEKEND_MESSAGES = [
+  '💤 Week-end : pas de case, même l’IA a droit au repos !',
+  '🔋 Week-end : l’IA recharge ses batteries, rendez-vous lundi !',
+  '☕ Week-end : on débranche, la prochaine case arrive lundi.',
+];
 
 export function App() {
   if (!isSupabaseConfigured) return <SetupScreen />;
@@ -348,7 +365,9 @@ function CalendarApp() {
   const previewActive = isAdmin && preview !== null;
   const viewDate = previewActive && preview ? preview.date : realToday;
   const includeDrafts = previewActive && preview ? preview.includeDrafts : false;
-  const activeDay = computeActiveDay(viewDate, cal.start_date);
+  const unlockAll = previewActive && preview ? Boolean(preview.unlockAll) : false;
+  // Test mode "tout déverrouiller": every slot with content becomes openable
+  const activeDay = unlockAll ? 32 : computeActiveDay(viewDate, cal.start_date);
 
   const slots = useMemo(
     () => listWorkingDays(cal.start_date, cal.end_date),
@@ -358,10 +377,10 @@ function CalendarApp() {
   const tips = useMemo<AdventTip[]>(() => {
     const byDate = new Map(cards.map((c) => [c.publish_date, c]));
     const out: AdventTip[] = [];
-    for (const date of slots) {
+    slots.forEach((date, index) => {
       const card = byDate.get(date);
       const diff = diffDays(viewDate, date);
-      const lockLabel = diff > 0 ? `J-${diff}` : undefined;
+      const lockLabel = diff > 0 && !unlockAll ? `J-${diff}` : undefined;
       const visible =
         card &&
         (previewActive
@@ -369,21 +388,22 @@ function CalendarApp() {
           : card.status === 'published' && date <= realToday);
       if (card && visible) {
         out.push({ ...card.content, day: dayOfMonth(date), date, lockLabel });
-      } else if (date >= viewDate) {
+      } else {
+        // Every working day keeps its box, even without content (wrapped & locked)
         out.push({
           ...EMPTY_TIP_CONTENT,
           title: '',
           emoji: '🎁',
+          cardStyle: PLACEHOLDER_STYLES[index % PLACEHOLDER_STYLES.length],
           day: dayOfMonth(date),
           date,
           placeholder: true,
           lockLabel: lockLabel ?? 'Bientôt',
         });
       }
-      // past slot without visible content => hidden
-    }
+    });
     return out;
-  }, [cards, slots, viewDate, realToday, previewActive, includeDrafts]);
+  }, [cards, slots, viewDate, realToday, previewActive, includeDrafts, unlockAll]);
 
   const activeOpenedDates = previewActive ? previewOpened : openedDates;
 
@@ -454,7 +474,19 @@ function CalendarApp() {
     );
   };
 
+  const handleWeekendClick = (date: string) => {
+    showToast(WEEKEND_MESSAGES[dayOfMonth(date) % WEEKEND_MESSAGES.length]);
+  };
+
   const handleLockedClick = (tip: AdventTip) => {
+    if (previewActive && tip.placeholder) {
+      showToast(
+        includeDrafts
+          ? `🛠️ Aucune case créée pour le ${formatDayMonthFR(tip.date)} (onglet « Cases » du Studio).`
+          : `🛠️ Pas de case publiée le ${formatDayMonthFR(tip.date)} — cochez « Inclure les brouillons » dans l’aperçu.`
+      );
+      return;
+    }
     const diff = diffDays(viewDate, tip.date);
     if (diff <= 0) {
       showToast('⏳ La case du jour arrive très bientôt, revenez un peu plus tard !');
@@ -535,7 +567,7 @@ function CalendarApp() {
   // ------------------------------------------------------------------
   if (!settings) {
     return (
-      <div className="min-h-screen bg-[#FAF9F5] bg-clean-grid flex items-center justify-center p-6">
+      <div className="min-h-screen bg-festive flex items-center justify-center p-6">
         {loadError ? (
           <div className="cartoon-box-lg rounded-3xl bg-white p-8 max-w-md text-center">
             <div className="text-4xl mb-3">📡</div>
@@ -550,7 +582,7 @@ function CalendarApp() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3 text-sm font-bold text-[#475569]">
+          <div className="flex items-center gap-3 text-sm font-bold text-white">
             <Loader2 className="w-5 h-5 animate-spin text-[#86BC25]" />
             Chargement du calendrier…
           </div>
@@ -562,14 +594,16 @@ function CalendarApp() {
   const progressDenominator = availableTips.length;
 
   return (
-    <div className="relative min-h-screen bg-[#FAF9F5] bg-clean-grid text-[#0F172A] flex flex-col">
+    <div className="relative min-h-screen bg-festive text-[#0F172A] flex flex-col">
+      <PageSnow />
       {/* Admin preview banner (only ever rendered for an authenticated admin) */}
       {previewActive && preview && (
         <div className="relative z-30 bg-[#FEF3C7] border-b-2 border-[#0F172A] px-4 py-2 text-center text-xs font-bold flex flex-wrap items-center justify-center gap-3">
           <span className="inline-flex items-center gap-1.5">
             <Eye className="w-4 h-4" />
             Aperçu admin au <span className="underline capitalize">{formatLongFR(preview.date)}</span>
-            {preview.includeDrafts ? ' • brouillons inclus' : ' • cases publiées uniquement'} — visible
+            {preview.includeDrafts ? ' • brouillons inclus' : ' • cases publiées uniquement'}
+            {preview.unlockAll ? ' • 🔓 toutes les cases déverrouillées' : ''} — visible
             uniquement par vous, rien n&apos;est comptabilisé.
           </span>
           <button
@@ -591,14 +625,15 @@ function CalendarApp() {
 
       {/* Main Layout */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 flex-1">
-        <header className="cartoon-box-lg rounded-3xl bg-white p-5 sm:p-7 mb-6">
+        <header className="cartoon-box-lg relative rounded-3xl bg-[#FFFDF7] p-5 sm:p-7 pt-9 sm:pt-10 mb-6 overflow-hidden">
+          <Garland />
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-start sm:items-center gap-4 sm:gap-5">
               <button
                 type="button"
                 onClick={handleEmblemClick}
                 title="Calendrier Transfo & Change"
-                className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl bg-gradient-to-br from-[#86BC25] to-[#5D8A16] border-[2.5px] border-[#0F172A] shadow-[4px_4px_0px_#0F172A] flex items-center justify-center text-white hover:-translate-y-0.5 transition-transform cursor-pointer"
+                className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl bg-gradient-to-br from-[#DC2626] to-[#991B1B] border-[2.5px] border-[#0F172A] shadow-[4px_4px_0px_#0F172A] flex items-center justify-center text-white hover:-translate-y-0.5 transition-transform cursor-pointer animate-float"
               >
                 <Gift className="w-8 h-8 sm:w-10 sm:h-10" />
               </button>
@@ -609,12 +644,15 @@ function CalendarApp() {
                     <span className="w-2 h-2 rounded-full bg-[#86BC25]" />
                     DELOITTE • TRANSFORMATION &amp; CHANGE
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] text-[11px] font-bold">
-                    ✨ Édition Hiver {cal.start_date.slice(0, 4)}
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#DC2626] text-white text-[11px] font-bold">
+                    🎅 Édition Noël {cal.start_date.slice(0, 4)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FBBF24] text-[#0F172A] text-[11px] font-bold">
+                    🤖 100 % IA
                   </span>
                 </div>
 
-                <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F172A] tracking-tight leading-tight">
+                <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight leading-tight text-festive-title">
                   {cal.title}
                 </h1>
                 <p className="text-sm sm:text-[15px] text-[#475569] mt-1 max-w-2xl">{cal.subtitle}</p>
@@ -641,7 +679,7 @@ function CalendarApp() {
                 <button
                   type="button"
                   onClick={() => setShowPastDrawer(true)}
-                  className="cartoon-btn inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FBBF24] text-[#0F172A] text-xs font-bold cursor-pointer"
+                  className="cartoon-btn inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#DC2626] text-white text-xs font-bold cursor-pointer"
                 >
                   <BookOpen className="w-4 h-4" />
                   Voir les tips passés ({openedAvailableCount})
@@ -678,8 +716,8 @@ function CalendarApp() {
                   onClick={() => setGridFilter(tab.id)}
                   className={`px-3 py-1.5 rounded-xl border-2 text-xs font-bold cursor-pointer transition-all ${
                     gridFilter === tab.id
-                      ? 'border-[#0F172A] bg-[#0F172A] text-[#A3E635]'
-                      : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] hover:border-[#0F172A] hover:text-[#0F172A]'
+                      ? 'border-[#0F172A] bg-[#166534] text-white'
+                      : 'border-[#E2E8F0] bg-white text-[#475569] hover:border-[#0F172A] hover:text-[#0F172A]'
                   }`}
                 >
                   {tab.label}
@@ -697,7 +735,8 @@ function CalendarApp() {
           </div>
         </header>
 
-        <main className="rounded-3xl border-2 border-[#0F172A]/10 bg-white/50 backdrop-blur-xs p-2 sm:p-4 shadow-xs">
+        <main className="rounded-3xl border-2 border-white/15 bg-white/5 p-2 sm:p-4">
+          {gridFilter === 'all' && <WeekdayHeader />}
           {filteredTips.length === 0 ? (
             <div className="cartoon-box rounded-3xl bg-white p-12 text-center max-w-md mx-auto my-8">
               <div className="text-4xl mb-3">🎄</div>
@@ -726,14 +765,18 @@ function CalendarApp() {
               openedDays={openedDays}
               bookmarkedDays={bookmarkedDays}
               parallaxEnabled={parallaxEnabled}
+              calendarLayout={gridFilter === 'all'}
+              rangeStart={cal.start_date}
+              rangeEnd={cal.end_date}
               onSelect={handleSelectTip}
               onLockedClick={handleLockedClick}
+              onWeekendClick={handleWeekendClick}
             />
           )}
         </main>
       </div>
 
-      <footer className="relative z-10 border-t-2 border-[#0F172A]/10 bg-white/90 px-4 sm:px-8 py-4">
+      <footer className="relative z-10 border-t-4 border-[#DC2626] bg-[#FFFDF7] px-4 sm:px-8 py-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#64748B]">
           <div className="flex flex-wrap items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#86BC25] inline-block" />
@@ -839,3 +882,82 @@ function CalendarApp() {
 }
 
 export default App;
+
+/** String of twinkling Christmas lights across the top of the header. */
+function Garland() {
+  const colors = ['#DC2626', '#FBBF24', '#16A34A', '#2563EB', '#EC4899'];
+  return (
+    <div aria-hidden className="pointer-events-none absolute top-0 left-0 right-0 h-8 overflow-hidden">
+      <svg className="absolute top-0 left-0 w-full h-5" preserveAspectRatio="none" viewBox="0 0 100 10">
+        <path d="M0 2 Q 5 8 10 2 T 20 2 T 30 2 T 40 2 T 50 2 T 60 2 T 70 2 T 80 2 T 90 2 T 100 2" fill="none" stroke="#14532D" strokeWidth="0.6" />
+      </svg>
+      <div className="absolute top-1 left-0 right-0 flex justify-around">
+        {Array.from({ length: 24 }, (_, i) => (
+          <span
+            key={i}
+            className="garland-bulb"
+            style={{ background: colors[i % colors.length], animationDelay: `${(i % 5) * 0.35}s`, marginTop: i % 2 ? 6 : 10 }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Weekday names above the calendar grid (wide screens only, matches the 3D columns). */
+function WeekdayHeader() {
+  const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+  return (
+    <div aria-hidden className="hidden min-[960px]:flex px-[6.1%] pt-2 -mb-6 gap-[1.8%] text-center">
+      {days.map((d) => (
+        <div key={d} className="flex-[2.05] text-[11px] font-bold uppercase tracking-widest text-[#FDE68A]">
+          {d}
+        </div>
+      ))}
+      {['Sam.', 'Dim.'].map((d) => (
+        <div key={d} className="flex-[1.15] text-[11px] font-bold uppercase tracking-widest text-white/40">
+          {d}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const PAGE_FLAKES = Array.from({ length: 34 }, (_, i) => {
+  const r = (n: number) => ((Math.sin(i * 7.13 + n * 41.7) * 9301.17) % 1 + 1) % 1;
+  return {
+    left: `${Math.round(r(1) * 100)}%`,
+    size: 8 + Math.round(r(2) * 14),
+    duration: 12 + r(3) * 14,
+    delay: -r(4) * 26,
+    drift: `${Math.round((r(5) - 0.5) * 120)}px`,
+    opacity: 0.35 + r(6) * 0.5,
+  };
+});
+
+/** Gentle snowfall over the whole page background. */
+function PageSnow() {
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+      {PAGE_FLAKES.map((f, i) => (
+        <span
+          key={i}
+          className="snowflake"
+          style={
+            {
+              left: f.left,
+              fontSize: f.size,
+              opacity: f.opacity,
+              color: '#FFFFFF',
+              animationDuration: `${f.duration}s`,
+              animationDelay: `${f.delay}s`,
+              '--drift': f.drift,
+            } as React.CSSProperties
+          }
+        >
+          ❄
+        </span>
+      ))}
+    </div>
+  );
+}

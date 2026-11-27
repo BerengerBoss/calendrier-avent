@@ -114,37 +114,37 @@ export const CATEGORY_META: Record<
   { label: string; bg: string; text: string; icon: string }
 > = {
   "Cas d'usage": {
-    label: "Cas d'usage",
+    label: "Cas d'usage IA",
     bg: 'bg-[#E0F2FE]',
     text: 'text-[#0369A1]',
     icon: '🧭',
   },
   'Tip Prompt': {
-    label: 'Astuce Rédaction',
+    label: 'Astuce Prompt IA',
     bg: 'bg-[#FEF3C7]',
     text: 'text-[#B45309]',
     icon: '✍️',
   },
   'Agent Partagé': {
-    label: 'Assistant Copilot',
+    label: 'Agent IA Copilot',
     bg: 'bg-[#EDE9FE]',
     text: 'text-[#6D28D9]',
     icon: '🤝',
   },
   'News IA': {
-    label: 'Actu & Culture IA',
+    label: 'Actu IA',
     bg: 'bg-[#ECFCCB]',
     text: 'text-[#3F6212]',
     icon: '📰',
   },
   Ressource: {
-    label: 'Ressource',
+    label: 'Ressource IA',
     bg: 'bg-[#FFE4E6]',
     text: 'text-[#BE123C]',
     icon: '📚',
   },
   Challenge: {
-    label: 'Challenge',
+    label: 'Défi IA',
     bg: 'bg-[#FEF9C3]',
     text: 'text-[#A16207]',
     icon: '🏆',

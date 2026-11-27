@@ -63,6 +63,37 @@
   background-size: 28px 28px;
 }
 
+/* Christmas page background: pine green night with soft glows */
+.bg-festive {
+  background-color: #0B3B2C;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(220, 38, 38, 0.35), transparent 38%),
+    radial-gradient(circle at 88% 14%, rgba(251, 191, 36, 0.22), transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(22, 163, 74, 0.35), transparent 50%),
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.07) 1.2px, transparent 0);
+  background-size: auto, auto, auto, 30px 30px;
+  background-attachment: fixed;
+}
+
+.text-festive-title {
+  color: #B91C1C;
+  text-shadow: 2px 2px 0 #FDE68A;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; filter: brightness(1.15); }
+  50% { opacity: 0.45; filter: brightness(0.8); }
+}
+.garland-bulb {
+  display: inline-block;
+  width: 9px;
+  height: 13px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: 0 0 8px currentColor;
+  border-top: 3px solid #14532D;
+  animation: twinkle 1.6s ease-in-out infinite;
+}
+
 /* Real 3D Perspective Stage */
 .perspective-stage {
   perspective: 1600px;
@@ -221,7 +252,8 @@
   .animate-float,
   .animate-ping-slow,
   .animate-hero-shift,
-  .snowflake {
+  .snowflake,
+  .garland-bulb {
     animation: none !important;
   }
   .snowflake { display: none; }

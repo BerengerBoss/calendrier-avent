@@ -2,7 +2,13 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { AdventTip } from '../types/advent';
 import { CARD_STYLES, CATEGORY_META } from '../data/cardStyles';
-import { formatShortFR, isTipLocked } from '../utils/calendar';
+import {
+  addDays,
+  formatShortFR,
+  formatWeekdayShortFR,
+  isTipLocked,
+  isoWeekday,
+} from '../utils/calendar';
 
 interface AdventThreeGridProps {
   tips: AdventTip[];
@@ -10,8 +16,13 @@ interface AdventThreeGridProps {
   openedDays: number[];
   bookmarkedDays: number[];
   parallaxEnabled: boolean;
+  /** true: real calendar (Mon→Sun rows, grey weekends). false: compact flow (filtered views). */
+  calendarLayout: boolean;
+  rangeStart: string;
+  rangeEnd: string;
   onSelect: (tip: AdventTip) => void;
   onLockedClick: (tip: AdventTip) => void;
+  onWeekendClick: (date: string) => void;
 }
 
 function drawWrappedText(
@@ -48,6 +59,101 @@ function drawWrappedText(
   });
 }
 
+function drawGiftWrap(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  stylePreset: (typeof CARD_STYLES)[keyof typeof CARD_STYLES]
+) {
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, stylePreset.foilColors[0]);
+  grad.addColorStop(0.55, stylePreset.foilColors[1]);
+  grad.addColorStop(1, stylePreset.foilColors[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Festive wrapping-paper pattern
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = '#FFFFFF';
+  if (stylePreset.foilPattern === 'dots') {
+    for (let x = 28; x < w; x += 40) {
+      for (let y = 28; y < h; y += 40) {
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (stylePreset.foilPattern === 'stripes') {
+    for (let i = -h; i < w + h; i += 48) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + 14, 0);
+      ctx.lineTo(i - h + 14, h);
+      ctx.lineTo(i - h, h);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else {
+    ctx.globalAlpha = 0.32;
+    ctx.font = '30px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const glyphs = ['❄', '★', '✦'];
+    let k = 0;
+    for (let y = 40; y < h; y += 78) {
+      for (let x = (y / 78) % 2 ? 30 : 70; x < w; x += 82) {
+        ctx.fillText(glyphs[k++ % glyphs.length], x, y);
+      }
+    }
+  }
+  ctx.restore();
+
+  // Gift ribbon (vertical + horizontal band) with a bow
+  ctx.save();
+  const ribbonW = 46;
+  const ribbonX = w * 0.68;
+  const ribbonY = h * 0.78;
+  ctx.fillStyle = '#FDE68A';
+  ctx.fillRect(ribbonX - ribbonW / 2, 0, ribbonW, h);
+  ctx.fillRect(0, ribbonY - ribbonW / 2, w, ribbonW);
+  ctx.strokeStyle = 'rgba(120, 53, 15, 0.45)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(ribbonX - ribbonW / 2, 0);
+  ctx.lineTo(ribbonX - ribbonW / 2, h);
+  ctx.moveTo(ribbonX + ribbonW / 2, 0);
+  ctx.lineTo(ribbonX + ribbonW / 2, h);
+  ctx.moveTo(0, ribbonY - ribbonW / 2);
+  ctx.lineTo(w, ribbonY - ribbonW / 2);
+  ctx.moveTo(0, ribbonY + ribbonW / 2);
+  ctx.lineTo(w, ribbonY + ribbonW / 2);
+  ctx.stroke();
+
+  ctx.fillStyle = '#FBBF24';
+  ctx.strokeStyle = '#0F172A';
+  ctx.lineWidth = 4;
+  for (const dir of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(ribbonX + dir * 34, ribbonY - 6, 34, 20, dir * -0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(ribbonX, ribbonY, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function finishTexture(canvas: HTMLCanvasElement, maxAnisotropy: number): THREE.CanvasTexture {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = Math.min(8, maxAnisotropy);
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function buildCardFaceTexture(
   tip: AdventTip,
   activeDay: number,
@@ -68,143 +174,84 @@ function buildCardFaceTexture(
   const isToday = tip.day === activeDay;
   const isPastUnopened = tip.day < activeDay && !isOpened;
 
-  // Base Card Background
-  if (isFuture) {
-    ctx.fillStyle = '#F1F5F9';
+  // ---- Background ----
+  if (isOpened) {
+    ctx.fillStyle = '#FFFDF7';
     ctx.fillRect(0, 0, w, h);
-  } else if (isOpened) {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, w, h);
-  } else {
-    const grad = ctx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, stylePreset.foilColors[0]);
-    grad.addColorStop(0.55, stylePreset.foilColors[1]);
-    grad.addColorStop(1, stylePreset.foilColors[2]);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Subtle geometric paper texture
+    // Candy-cane bottom strip
     ctx.save();
-    ctx.globalAlpha = 0.14;
-    ctx.fillStyle = '#FFFFFF';
-    if (stylePreset.foilPattern === 'dots') {
-      for (let x = 28; x < w; x += 40) {
-        for (let y = 28; y < h; y += 40) {
-          ctx.beginPath();
-          ctx.arc(x, y, 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    } else if (stylePreset.foilPattern === 'stripes') {
-      for (let i = -h; i < w + h; i += 48) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i + 14, 0);
-        ctx.lineTo(i - h + 14, h);
-        ctx.lineTo(i - h, h);
-        ctx.closePath();
-        ctx.fill();
-      }
-    } else {
-      for (let i = -h; i < w + h; i += 72) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i + 24, 0);
-        ctx.lineTo(i - h + 24, h);
-        ctx.lineTo(i - h, h);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-    ctx.restore();
-
-    // Gift ribbon (vertical + horizontal band) with a little bow on top
-    ctx.save();
-    const ribbonW = 46;
-    const ribbonX = w * 0.68;
-    const ribbonY = h * 0.78;
-    ctx.fillStyle = 'rgba(250, 249, 245, 0.92)';
-    ctx.fillRect(ribbonX - ribbonW / 2, 0, ribbonW, h);
-    ctx.fillRect(0, ribbonY - ribbonW / 2, w, ribbonW);
-    ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
-    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(ribbonX - ribbonW / 2, 0);
-    ctx.lineTo(ribbonX - ribbonW / 2, h);
-    ctx.moveTo(ribbonX + ribbonW / 2, 0);
-    ctx.lineTo(ribbonX + ribbonW / 2, h);
-    ctx.moveTo(0, ribbonY - ribbonW / 2);
-    ctx.lineTo(w, ribbonY - ribbonW / 2);
-    ctx.moveTo(0, ribbonY + ribbonW / 2);
-    ctx.lineTo(w, ribbonY + ribbonW / 2);
-    ctx.stroke();
-
-    // Bow loops at the crossing
-    ctx.fillStyle = '#FAF9F5';
-    ctx.strokeStyle = '#0F172A';
-    ctx.lineWidth = 4;
-    for (const dir of [-1, 1]) {
+    ctx.rect(0, h - 110, w, 110);
+    ctx.clip();
+    ctx.fillStyle = stylePreset.foilColors[0];
+    ctx.fillRect(0, h - 110, w, 110);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let i = -110; i < w + 110; i += 44) {
       ctx.beginPath();
-      ctx.ellipse(ribbonX + dir * 34, ribbonY - 6, 34, 20, dir * -0.45, 0, Math.PI * 2);
+      ctx.moveTo(i, h);
+      ctx.lineTo(i + 18, h);
+      ctx.lineTo(i + 128, h - 110);
+      ctx.lineTo(i + 110, h - 110);
+      ctx.closePath();
       ctx.fill();
-      ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.arc(ribbonX, ribbonY, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
     ctx.restore();
+  } else {
+    drawGiftWrap(ctx, w, h, stylePreset);
+    if (isFuture) {
+      // Still wrapped and colourful, just a light frost veil
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.fillRect(0, 0, w, h);
+    }
   }
 
-  // Crisp Inner Frame Border
-  ctx.strokeStyle = isFuture ? '#CBD5E1' : '#0F172A';
+  // Inner frame
+  ctx.strokeStyle = '#0F172A';
   ctx.lineWidth = 14;
   ctx.strokeRect(7, 7, w - 14, h - 14);
 
-  // Top-left Day Number Badge
+  // ---- Day badge (number + weekday) ----
   const badgeX = 34;
   const badgeY = 34;
-  const badgeSize = 86;
+  const badgeSize = 96;
   ctx.save();
-  if (!isFuture) {
-    ctx.fillStyle = '#0F172A';
-    ctx.beginPath();
-    ctx.roundRect(badgeX + 5, badgeY + 5, badgeSize, badgeSize, 18);
-    ctx.fill();
-  }
+  ctx.fillStyle = '#0F172A';
+  ctx.beginPath();
+  ctx.roundRect(badgeX + 5, badgeY + 5, badgeSize, badgeSize, 18);
+  ctx.fill();
 
-  if (isFuture) {
-    ctx.fillStyle = '#E2E8F0';
-  } else if (isOpened) {
+  if (isOpened) {
     const g2 = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize);
     g2.addColorStop(0, stylePreset.foilColors[0]);
     g2.addColorStop(1, stylePreset.foilColors[1]);
     ctx.fillStyle = g2;
   } else {
-    ctx.fillStyle = '#FAF9F5';
+    ctx.fillStyle = '#FFFDF7';
   }
-
-  ctx.strokeStyle = isFuture ? '#CBD5E1' : '#0F172A';
+  ctx.strokeStyle = '#0F172A';
   ctx.lineWidth = 5;
   ctx.beginPath();
   ctx.roundRect(badgeX, badgeY, badgeSize, badgeSize, 18);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = isFuture
-    ? '#64748B'
-    : isOpened
-    ? stylePreset.numberColor === 'text-white'
-      ? '#FFFFFF'
-      : '#0F172A'
-    : '#0F172A';
-  ctx.font = '700 44px Fredoka, "Space Grotesk", sans-serif';
+  const badgeFg =
+    isOpened && stylePreset.numberColor === 'text-white' ? '#FFFFFF' : '#0F172A';
+  ctx.fillStyle = badgeFg;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(tip.day), badgeX + badgeSize / 2, badgeY + badgeSize / 2 + 2);
+  ctx.font = '700 46px Fredoka, "Space Grotesk", sans-serif';
+  ctx.fillText(String(tip.day), badgeX + badgeSize / 2, badgeY + badgeSize / 2 - 8);
+  ctx.font = '700 19px "Space Grotesk", sans-serif';
+  ctx.fillStyle = isOpened ? badgeFg : '#B91C1C';
+  ctx.fillText(
+    formatWeekdayShortFR(tip.date).replace('.', '').toUpperCase(),
+    badgeX + badgeSize / 2,
+    badgeY + badgeSize - 18
+  );
   ctx.restore();
 
-  // Top-right Status Pill
+  // ---- Status pill ----
   ctx.save();
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
@@ -215,15 +262,15 @@ function buildCardFaceTexture(
   if (isFuture) {
     pillText = `🔒 ${tip.lockLabel ?? `J-${Math.max(1, tip.day - activeDay)}`}`;
     pillBg = '#FFFFFF';
-    pillFg = '#64748B';
+    pillFg = '#334155';
   } else if (isOpened) {
     pillText = isBookmarked ? '⭐ Ouvert' : '✓ Ouvert';
-    pillBg = '#ECFCCB';
-    pillFg = '#3F6212';
+    pillBg = '#DCFCE7';
+    pillFg = '#166534';
   } else if (isToday) {
     pillText = '✨ JOUR J';
-    pillBg = '#0F172A';
-    pillFg = '#A3E635';
+    pillBg = '#B91C1C';
+    pillFg = '#FFFFFF';
   } else if (isPastUnopened) {
     pillText = 'À gratter';
     pillBg = '#FFF1F2';
@@ -239,7 +286,7 @@ function buildCardFaceTexture(
     const py = 46;
 
     ctx.fillStyle = pillBg;
-    ctx.strokeStyle = isFuture ? '#CBD5E1' : '#0F172A';
+    ctx.strokeStyle = '#0F172A';
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.roundRect(px, py, pw, ph, 22);
@@ -251,40 +298,51 @@ function buildCardFaceTexture(
   }
   ctx.restore();
 
-  // Center Content
+  // ---- Center ----
   ctx.save();
   if (isFuture) {
+    const label = tip.day <= activeDay ? 'Bientôt dispo' : `Le ${formatShortFR(tip.date)}`;
+    ctx.font = '700 28px "Space Grotesk", sans-serif';
+    const lw = Math.max(250, ctx.measureText(label).width + 60);
+    const lh = 116;
+    const lx = (w - lw) / 2;
+    const ly = h / 2 - 60;
+    ctx.fillStyle = '#0F172A';
+    ctx.beginPath();
+    ctx.roundRect(lx + 6, ly + 6, lw, lh, 22);
+    ctx.fill();
+    ctx.fillStyle = '#FFFDF7';
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, lw, lh, 22);
+    ctx.fill();
+    ctx.stroke();
     ctx.textAlign = 'center';
-    ctx.font = '64px sans-serif';
-    ctx.fillText('🔒', w / 2, h / 2 - 14);
-    ctx.fillStyle = '#64748B';
-    ctx.font = '700 24px "Space Grotesk", sans-serif';
-    ctx.fillText(
-      tip.day <= activeDay ? 'Bientôt disponible' : `Disponible le ${formatShortFR(tip.date)}`,
-      w / 2,
-      h / 2 + 56
-    );
+    ctx.textBaseline = 'middle';
+    ctx.font = '40px sans-serif';
+    ctx.fillText('🔒', w / 2, ly + 36);
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '700 28px "Space Grotesk", sans-serif';
+    ctx.fillText(label, w / 2, ly + 84);
   } else if (isOpened) {
-    // Category tag
     ctx.font = '700 21px "Space Grotesk", sans-serif';
     const catLabel = `${catMeta.icon} ${catMeta.label}`;
     const cw = ctx.measureText(catLabel).width + 30;
-    ctx.fillStyle = '#F1F5F9';
+    ctx.fillStyle = '#FEF3C7';
     ctx.beginPath();
-    ctx.roundRect(34, 152, cw, 38, 12);
+    ctx.roundRect(34, 156, cw, 38, 12);
     ctx.fill();
-    ctx.fillStyle = '#0F172A';
+    ctx.fillStyle = '#92400E';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(catLabel, 49, 171);
+    ctx.fillText(catLabel, 49, 175);
 
-    // Title with Emoji
     ctx.fillStyle = '#0F172A';
     ctx.font = '700 31px Fredoka, "Space Grotesk", sans-serif';
     ctx.textBaseline = 'top';
-    drawWrappedText(ctx, `${tip.emoji} ${tip.title}`, 34, 214, w - 68, 42, 4);
+    drawWrappedText(ctx, `${tip.emoji} ${tip.title}`, 34, 216, w - 68, 42, 4);
   } else {
-    // Sealed Foil Card Center Call-to-action
     const ctaW = 330;
     const ctaH = 74;
     const cx = (w - ctaW) / 2;
@@ -295,7 +353,7 @@ function buildCardFaceTexture(
     ctx.roundRect(cx + 6, cy + 6, ctaW, ctaH, 20);
     ctx.fill();
 
-    ctx.fillStyle = '#FAF9F5';
+    ctx.fillStyle = isToday ? '#B91C1C' : '#FFFDF7';
     ctx.strokeStyle = '#0F172A';
     ctx.lineWidth = 5;
     ctx.beginPath();
@@ -303,7 +361,7 @@ function buildCardFaceTexture(
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#0F172A';
+    ctx.fillStyle = isToday ? '#FFFFFF' : '#0F172A';
     ctx.font = '700 27px "Space Grotesk", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -318,33 +376,27 @@ function buildCardFaceTexture(
       ctx.beginPath();
       ctx.roundRect(bx, by, bw, 36, 10);
       ctx.fill();
-      ctx.fillStyle = '#FAF9F5';
+      ctx.fillStyle = '#FFFDF7';
       ctx.fillText(tip.badgeTag, w / 2, by + 19);
     }
   }
   ctx.restore();
 
-  // Footer strip
+  // ---- Footer ----
   ctx.save();
   ctx.textBaseline = 'middle';
-  if (isFuture) {
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = '600 21px "Space Grotesk", sans-serif';
+  if (isOpened) {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '700 21px "Space Grotesk", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('Case verrouillée', 34, h - 46);
-  } else if (isOpened) {
-    ctx.fillStyle = '#64748B';
-    ctx.font = '600 21px "Space Grotesk", sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(tip.practice, 34, h - 46);
-
-    ctx.fillStyle = '#0284C7';
-    ctx.font = '700 22px "Space Grotesk", sans-serif';
+    ctx.fillText(tip.practice, 34, h - 52);
+    ctx.font = '700 23px "Space Grotesk", sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('Ouvrir →', w - 34, h - 46);
+    ctx.fillText('Ouvrir →', w - 34, h - 52);
   } else {
-    // Sealed gift: no wrapping-paper name, just a format teaser + emoji
-    const formatChip = tip.quiz
+    const formatChip = isFuture
+      ? ''
+      : tip.quiz
       ? '🎲 Quiz'
       : tip.media && (tip.media.kind === 'youtube' || tip.media.kind === 'embed')
       ? '🎬 Vidéo'
@@ -358,27 +410,226 @@ function buildCardFaceTexture(
       ctx.beginPath();
       ctx.roundRect(34, h - 68, fw, 42, 12);
       ctx.fill();
-      ctx.fillStyle = '#FAF9F5';
+      ctx.fillStyle = '#FFFDF7';
       ctx.textAlign = 'left';
       ctx.fillText(formatChip, 49, h - 46);
     }
     ctx.font = '40px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(tip.emoji, w - 34, h - 48);
+    ctx.fillText(tip.emoji || '🎁', w - 34, h - 48);
   }
   ctx.restore();
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = Math.min(8, maxAnisotropy);
-  texture.needsUpdate = true;
-  return texture;
+  return finishTexture(canvas, maxAnisotropy);
 }
 
-function getColsForWidth(width: number): number {
-  if (width >= 1024) return 6;
-  if (width >= 640) return 4;
-  return 2;
+/** Grey weekend tile (not openable). */
+function buildWeekendTexture(date: string, aspect: number, maxAnisotropy: number) {
+  const h = 560;
+  const w = Math.round(h * aspect);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, '#E2E8F0');
+  grad.addColorStop(1, '#CBD5E1');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  for (let i = 0; i < 18; i++) {
+    const x = ((Math.sin(i * 91.7 + w) + 1) / 2) * w;
+    const y = ((Math.sin(i * 17.3 + 3) + 1) / 2) * h;
+    ctx.beginPath();
+    ctx.arc(x, y, 4 + (i % 3) * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = '#94A3B8';
+  ctx.lineWidth = 12;
+  ctx.strokeRect(6, 6, w - 12, h - 12);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#64748B';
+  ctx.font = '700 30px "Space Grotesk", sans-serif';
+  ctx.fillText(formatWeekdayShortFR(date).replace('.', '').toUpperCase(), w / 2, 80);
+  ctx.font = '700 84px Fredoka, "Space Grotesk", sans-serif';
+  ctx.fillText(String(Number(date.slice(8, 10))), w / 2, 160);
+  ctx.font = '64px sans-serif';
+  ctx.fillText(isoWeekday(date) === 6 ? '💤' : '☕', w / 2, h / 2 + 40);
+  ctx.font = '700 26px "Space Grotesk", sans-serif';
+  ctx.fillText('Week-end', w / 2, h - 80);
+  return finishTexture(canvas, maxAnisotropy);
+}
+
+/** Thin grey band shown between weeks on narrower screens. */
+function buildWeekendBandTexture(dates: string[], aspect: number, maxAnisotropy: number) {
+  const w = 2048;
+  const h = Math.max(96, Math.round(w / aspect));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#E2E8F0';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = '#94A3B8';
+  ctx.lineWidth = Math.max(6, h * 0.06);
+  ctx.strokeRect(0, 0, w, h);
+  ctx.fillStyle = '#64748B';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const days = dates
+    .map((d) => `${formatWeekdayShortFR(d)} ${Number(d.slice(8, 10))}`)
+    .join(' & ');
+  ctx.font = `700 ${Math.round(h * 0.42)}px "Space Grotesk", sans-serif`;
+  ctx.fillText(`💤 Week-end · ${days} — pas de case, l'IA recharge ses batteries 🔋`, w / 2, h / 2 + 2, w - 40);
+  return finishTexture(canvas, maxAnisotropy);
+}
+
+// ------------------------------------------------------------------
+//  Layout
+// ------------------------------------------------------------------
+type LayoutMode = 'wide' | 'medium' | 'narrow';
+
+interface Cell {
+  key: string;
+  kind: 'card' | 'weekend' | 'band';
+  date: string; // card/weekend date, or Saturday for a band
+  dates?: string[]; // band only
+  x: number; // centre, world units
+  y: number;
+  w: number;
+  h: number;
+}
+
+const CARD_W = 2.05;
+const CARD_H = 2.24;
+const GAP_X = 0.3;
+const GAP_Y = 0.34;
+const WEEKEND_W = 1.15;
+const BAND_H = 0.55;
+/** Empty space around the grid (world units) so hover pop & parallax never get cropped. */
+const MARGINS: Record<LayoutMode, { x: number; y: number }> = {
+  wide: { x: 1.0, y: 0.8 },
+  medium: { x: 0.85, y: 0.7 },
+  narrow: { x: 0.45, y: 0.5 },
+};
+
+function getMode(width: number): LayoutMode {
+  if (width >= 900) return 'wide';
+  if (width >= 560) return 'medium';
+  return 'narrow';
+}
+
+function computeLayout(
+  tips: AdventTip[],
+  mode: LayoutMode,
+  calendarLayout: boolean,
+  rangeStart: string,
+  rangeEnd: string
+): { cells: Cell[]; totalW: number; totalH: number } {
+  // Top-left based rectangles first, centred at the end
+  const out: (Omit<Cell, 'x' | 'y'> & { left: number; top: number })[] = [];
+  let totalW = 0;
+  let cursorY = 0;
+
+  if (!calendarLayout) {
+    const cols = mode === 'wide' ? 6 : mode === 'medium' ? 4 : 2;
+    totalW = cols * CARD_W + (cols - 1) * GAP_X;
+    tips.forEach((tip, i) => {
+      out.push({
+        key: `c:${tip.date}`,
+        kind: 'card',
+        date: tip.date,
+        w: CARD_W,
+        h: CARD_H,
+        left: (i % cols) * (CARD_W + GAP_X),
+        top: Math.floor(i / cols) * (CARD_H + GAP_Y),
+      });
+    });
+    const rows = Math.max(1, Math.ceil(tips.length / cols));
+    cursorY = rows * CARD_H + (rows - 1) * GAP_Y;
+  } else {
+    // Group by ISO week (Monday)
+    const weeks = new Map<string, AdventTip[]>();
+    for (const t of tips) {
+      const monday = addDays(t.date, -(isoWeekday(t.date) - 1));
+      const list = weeks.get(monday) ?? [];
+      list.push(t);
+      weeks.set(monday, list);
+    }
+    const mondays = Array.from(weeks.keys()).sort();
+    const weekendIn = (monday: string) =>
+      [addDays(monday, 5), addDays(monday, 6)].filter((d) => d >= rangeStart && d <= rangeEnd);
+
+    const colsW =
+      mode === 'wide'
+        ? [CARD_W, CARD_W, CARD_W, CARD_W, CARD_W, WEEKEND_W, WEEKEND_W]
+        : mode === 'medium'
+        ? [CARD_W, CARD_W, CARD_W, CARD_W, CARD_W]
+        : [CARD_W, CARD_W];
+    const colLeft: number[] = [];
+    colsW.reduce((acc, cw, i) => {
+      colLeft[i] = acc;
+      return acc + cw + GAP_X;
+    }, 0);
+    totalW = colsW.reduce((a, b) => a + b, 0) + (colsW.length - 1) * GAP_X;
+
+    mondays.forEach((monday, wi) => {
+      const weekTips = weeks.get(monday)!;
+      const byDate = new Map(weekTips.map((t) => [t.date, t]));
+      if (wi > 0) cursorY += GAP_Y;
+
+      if (mode === 'wide') {
+        for (let wd = 1; wd <= 7; wd++) {
+          const date = addDays(monday, wd - 1);
+          if (byDate.has(date)) {
+            out.push({ key: `c:${date}`, kind: 'card', date, w: CARD_W, h: CARD_H, left: colLeft[wd - 1], top: cursorY });
+          } else if (wd >= 6 && date >= rangeStart && date <= rangeEnd) {
+            out.push({ key: `w:${date}`, kind: 'weekend', date, w: WEEKEND_W, h: CARD_H, left: colLeft[wd - 1], top: cursorY });
+          }
+        }
+        cursorY += CARD_H;
+      } else {
+        if (mode === 'medium') {
+          for (const t of weekTips) {
+            const wd = isoWeekday(t.date);
+            if (wd > 5) continue;
+            out.push({ key: `c:${t.date}`, kind: 'card', date: t.date, w: CARD_W, h: CARD_H, left: colLeft[wd - 1], top: cursorY });
+          }
+          cursorY += CARD_H;
+        } else {
+          weekTips.forEach((t, i) => {
+            out.push({
+              key: `c:${t.date}`,
+              kind: 'card',
+              date: t.date,
+              w: CARD_W,
+              h: CARD_H,
+              left: colLeft[i % 2],
+              top: cursorY + Math.floor(i / 2) * (CARD_H + GAP_Y),
+            });
+          });
+          const rows = Math.ceil(weekTips.length / 2);
+          cursorY += rows * CARD_H + (rows - 1) * GAP_Y;
+        }
+        const we = weekendIn(monday);
+        if (we.length > 0 && wi < mondays.length - 1) {
+          cursorY += GAP_Y;
+          out.push({ key: `b:${we[0]}`, kind: 'band', date: we[0], dates: we, w: totalW, h: BAND_H, left: 0, top: cursorY });
+          cursorY += BAND_H;
+        }
+      }
+    });
+  }
+
+  const totalH = Math.max(CARD_H, cursorY);
+  const cells: Cell[] = out.map(({ left, top, ...c }) => ({
+    ...c,
+    x: -totalW / 2 + left + c.w / 2,
+    y: totalH / 2 - top - c.h / 2,
+  }));
+  return { cells, totalW, totalH };
 }
 
 export const AdventThreeGrid: React.FC<AdventThreeGridProps> = ({
@@ -387,27 +638,30 @@ export const AdventThreeGrid: React.FC<AdventThreeGridProps> = ({
   openedDays,
   bookmarkedDays,
   parallaxEnabled,
+  calendarLayout,
+  rangeStart,
+  rangeEnd,
   onSelect,
   onLockedClick,
+  onWeekendClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [colsCount, setColsCount] = React.useState<number>(() =>
-    typeof window !== 'undefined' ? getColsForWidth(window.innerWidth) : 6
+  const [mode, setMode] = React.useState<LayoutMode>(() =>
+    typeof window !== 'undefined' ? getMode(window.innerWidth) : 'wide'
   );
 
   useEffect(() => {
-    const updateCols = () => {
+    const update = () => {
       const w = containerRef.current?.clientWidth || window.innerWidth;
-      setColsCount(getColsForWidth(w));
+      setMode(getMode(w));
     };
-    updateCols();
-    window.addEventListener('resize', updateCols);
-    return () => window.removeEventListener('resize', updateCols);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
-  // Refs to keep Three.js event listeners synced with latest props/callbacks
-  const callbacksRef = useRef({ onSelect, onLockedClick });
-  callbacksRef.current = { onSelect, onLockedClick };
+  const callbacksRef = useRef({ onSelect, onLockedClick, onWeekendClick });
+  callbacksRef.current = { onSelect, onLockedClick, onWeekendClick };
 
   const activeDayRef = useRef(activeDay);
   activeDayRef.current = activeDay;
@@ -418,197 +672,144 @@ export const AdventThreeGrid: React.FC<AdventThreeGridProps> = ({
   const tipsRef = useRef(tips);
   tipsRef.current = tips;
 
-  // Store Three.js scene objects for incremental texture updates
   const sceneStateRef = useRef<{
     renderer?: THREE.WebGLRenderer;
-    scene?: THREE.Scene;
-    camera?: THREE.PerspectiveCamera;
-    meshes: Map<number, THREE.Mesh>;
-    textures: Map<number, THREE.CanvasTexture>;
-    hoveredDay: number | null;
-    wiggleEnd: Map<number, number>;
-    pointerNDC: { x: number; y: number };
+    meshes: Map<string, THREE.Mesh>;
+    textures: Map<string, THREE.CanvasTexture>;
+    hoveredKey: string | null;
+    wiggleEnd: Map<string, number>;
     targetParallax: { x: number; y: number };
-    cols: number;
-    rows: number;
   }>({
     meshes: new Map(),
     textures: new Map(),
-    hoveredDay: null,
+    hoveredKey: null,
     wiggleEnd: new Map(),
-    pointerNDC: { x: 99, y: 99 },
     targetParallax: { x: 0, y: 0 },
-    cols: 6,
-    rows: 4,
   });
 
-  // Compute responsive columns & container height
-  const getLayoutMetrics = (width: number, count: number) => {
-    const cols = width >= 1024 ? 6 : width >= 640 ? 4 : 2;
-    const rows = Math.max(1, Math.ceil(count / cols));
-    return { cols, rows };
-  };
+  const layoutSignature = `${mode}|${calendarLayout}|${rangeStart}|${rangeEnd}|${tips
+    .map((t) => t.date)
+    .join(',')}`;
 
-  // Initialize & rebuild Three.js grid whenever tip count/order or breakpoint columns change
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    const { cells, totalW, totalH } = computeLayout(
+      tipsRef.current,
+      mode,
+      calendarLayout,
+      rangeStart,
+      rangeEnd
+    );
+    const margin = MARGINS[mode];
+    const worldW = totalW + 2 * margin.x;
+    const worldH = totalH + 2 * margin.y;
+
+    const sizeFor = (w: number) => Math.max(260, Math.round((worldH * w) / worldW));
     const width = container.clientWidth || 1000;
-    const cols = colsCount;
-    const rows = Math.max(1, Math.ceil(tips.length / cols));
-    const desiredHeight = Math.max(360, rows * (cols === 2 ? 235 : cols === 4 ? 220 : 210));
-    container.style.height = `${desiredHeight}px`;
+    const height = sizeFor(width);
+    container.style.height = `${height}px`;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(36, width / desiredHeight, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 200);
+    const fovRad = (camera.fov * Math.PI) / 180;
+    const fitDistance = (aspect: number) =>
+      Math.max(worldH / 2 / Math.tan(fovRad / 2), worldW / 2 / (Math.tan(fovRad / 2) * aspect));
+    camera.position.set(0, 0, fitDistance(width / height));
+    camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(width, desiredHeight);
+    renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
-
     const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 
-    // Lighting for warm, tactile 3D blocks
-    const ambient = new THREE.AmbientLight(0xffffff, 1.55);
-    scene.add(ambient);
-
+    scene.add(new THREE.AmbientLight(0xffffff, 1.55));
     const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.4);
     keyLight.position.set(6, 9, 14);
     scene.add(keyLight);
-
     const fillLight = new THREE.DirectionalLight(0xe0f2fe, 0.65);
     fillLight.position.set(-8, -5, 10);
     scene.add(fillLight);
 
-    const cardW = 2.05;
-    const cardH = 2.24;
-    const cardDepth = 0.24;
-    const gapX = 0.34;
-    const gapY = 0.36;
+    const meshes = new Map<string, THREE.Mesh>();
+    const textures = new Map<string, THREE.CanvasTexture>();
+    const geometries: THREE.BufferGeometry[] = [];
+    const tipByDate = new Map(tipsRef.current.map((t) => [t.date, t]));
 
-    const totalW = cols * cardW + (cols - 1) * gapX;
-    const totalH = rows * cardH + (rows - 1) * gapY;
+    for (const cell of cells) {
+      const depth = cell.kind === 'card' ? 0.24 : 0.1;
+      const geo = new THREE.BoxGeometry(cell.w, cell.h, depth);
+      geometries.push(geo);
 
-    // Position camera so the entire grid fits cleanly with comfortable margins
-    const fovRad = (camera.fov * Math.PI) / 180;
-    const aspect = width / desiredHeight;
-    const distForH = (totalH / 2 + 0.7) / Math.tan(fovRad / 2);
-    const distForW = (totalW / 2 + 0.7) / (Math.tan(fovRad / 2) * aspect);
-    const baseCamZ = Math.max(distForH, distForW);
-    camera.position.set(0, 0, baseCamZ);
-    camera.lookAt(0, 0, 0);
+      let tex: THREE.CanvasTexture;
+      let sideHex = '#94A3B8';
+      if (cell.kind === 'card') {
+        const tip = tipByDate.get(cell.date)!;
+        const isFuture = isTipLocked(tip, activeDay);
+        const isOpened = !isFuture && openedDays.includes(tip.day);
+        const stylePreset = CARD_STYLES[tip.cardStyle] || CARD_STYLES['deloitte-emerald'];
+        sideHex = isOpened ? '#B91C1C' : stylePreset.edgeColor;
+        tex = buildCardFaceTexture(tip, activeDay, isOpened, bookmarkedDays.includes(tip.day), maxAnisotropy);
+      } else if (cell.kind === 'weekend') {
+        tex = buildWeekendTexture(cell.date, cell.w / cell.h, maxAnisotropy);
+      } else {
+        tex = buildWeekendBandTexture(cell.dates ?? [cell.date], cell.w / cell.h, maxAnisotropy);
+      }
+      textures.set(cell.key, tex);
 
-    const boxGeo = new THREE.BoxGeometry(cardW, cardH, cardDepth);
-    const meshes = new Map<number, THREE.Mesh>();
-    const textures = new Map<number, THREE.CanvasTexture>();
-
-    tips.forEach((tip, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-
-      const x = -totalW / 2 + cardW / 2 + col * (cardW + gapX);
-      const y = totalH / 2 - cardH / 2 - row * (cardH + gapY);
-
-      const isFuture = isTipLocked(tip, activeDay);
-      const isOpened = !isFuture && openedDays.includes(tip.day);
-      const isBookmarked = bookmarkedDays.includes(tip.day);
-
-      const stylePreset = CARD_STYLES[tip.cardStyle] || CARD_STYLES['deloitte-emerald'];
-      const sideHex = isFuture ? '#CBD5E1' : isOpened ? '#94A3B8' : stylePreset.edgeColor;
-
-      const sideMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(sideHex),
-        roughness: 0.45,
-        metalness: 0.08,
-      });
-
-      const backMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color('#1E293B'),
-        roughness: 0.6,
-      });
-
-      const tex = buildCardFaceTexture(tip, activeDay, isOpened, isBookmarked, maxAnisotropy);
-      textures.set(tip.day, tex);
-
-      const frontMat = new THREE.MeshStandardMaterial({
-        map: tex,
-        roughness: 0.32,
-        metalness: 0.04,
-      });
-
+      const sideMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(sideHex), roughness: 0.45, metalness: 0.08 });
+      const backMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#1E293B'), roughness: 0.6 });
+      const frontMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.32, metalness: 0.04 });
       // BoxGeometry material order: [+x, -x, +y, -y, +z (front), -z (back)]
-      const mesh = new THREE.Mesh(boxGeo, [
-        sideMat,
-        sideMat,
-        sideMat,
-        sideMat,
-        frontMat,
-        backMat,
-      ]);
-
-      mesh.position.set(x, y, 0);
-      mesh.userData = {
-        day: tip.day,
-        baseX: x,
-        baseY: y,
-        col,
-        row,
-      };
+      const mesh = new THREE.Mesh(geo, [sideMat, sideMat, sideMat, sideMat, frontMat, backMat]);
+      mesh.position.set(cell.x, cell.y, cell.kind === 'card' ? 0 : -0.07);
+      mesh.userData = { key: cell.key, kind: cell.kind, date: cell.date };
       scene.add(mesh);
-      meshes.set(tip.day, mesh);
-    });
+      meshes.set(cell.key, mesh);
+    }
 
-    sceneStateRef.current = {
-      ...sceneStateRef.current,
-      renderer,
-      scene,
-      camera,
-      meshes,
-      textures,
-      cols,
-      rows,
-    };
+    sceneStateRef.current = { ...sceneStateRef.current, renderer, meshes, textures };
+
+    const findTip = (date: string) => tipsRef.current.find((t) => t.date === date);
 
     const raycaster = new THREE.Raycaster();
     const pointerVec = new THREE.Vector2();
     let downCoords: { x: number; y: number } | null = null;
 
-    const getHitDay = (clientX: number, clientY: number): number | null => {
+    const getHit = (clientX: number, clientY: number): THREE.Object3D | null => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointerVec.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       pointerVec.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointerVec, camera);
-      const intersects = raycaster.intersectObjects(Array.from(meshes.values()), false);
-      if (intersects.length > 0) {
-        return intersects[0].object.userData.day as number;
-      }
-      return null;
+      const hits = raycaster.intersectObjects(Array.from(meshes.values()), false);
+      return hits.length > 0 ? hits[0].object : null;
     };
 
     const handlePointerMove = (e: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-      const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-      sceneStateRef.current.targetParallax = { x: nx, y: ny };
-
-      const hitDay = getHitDay(e.clientX, e.clientY);
-      sceneStateRef.current.hoveredDay = hitDay;
-
-      if (hitDay !== null) {
-        const hitTip = tipsRef.current.find((t) => t.day === hitDay);
-        const isFuture = !hitTip || isTipLocked(hitTip, activeDayRef.current);
-        renderer.domElement.style.cursor = isFuture ? 'not-allowed' : 'pointer';
-      } else {
+      sceneStateRef.current.targetParallax = {
+        x: ((e.clientX - rect.left) / rect.width - 0.5) * 2,
+        y: ((e.clientY - rect.top) / rect.height - 0.5) * 2,
+      };
+      const hit = getHit(e.clientX, e.clientY);
+      sceneStateRef.current.hoveredKey = hit ? (hit.userData.key as string) : null;
+      if (!hit) {
         renderer.domElement.style.cursor = 'default';
+      } else if (hit.userData.kind !== 'card') {
+        renderer.domElement.style.cursor = 'default';
+      } else {
+        const tip = findTip(hit.userData.date as string);
+        renderer.domElement.style.cursor =
+          !tip || isTipLocked(tip, activeDayRef.current) ? 'not-allowed' : 'pointer';
       }
     };
 
     const handlePointerLeave = () => {
-      sceneStateRef.current.hoveredDay = null;
+      sceneStateRef.current.hoveredKey = null;
       sceneStateRef.current.targetParallax = { x: 0, y: 0 };
       renderer.domElement.style.cursor = 'default';
     };
@@ -622,15 +823,19 @@ export const AdventThreeGrid: React.FC<AdventThreeGridProps> = ({
       const dist = Math.hypot(e.clientX - downCoords.x, e.clientY - downCoords.y);
       downCoords = null;
       if (dist > 14) return;
-
-      const hitDay = getHitDay(e.clientX, e.clientY);
-      if (hitDay === null) return;
-
-      const tip = tipsRef.current.find((t) => t.day === hitDay);
+      const hit = getHit(e.clientX, e.clientY);
+      if (!hit) return;
+      const key = hit.userData.key as string;
+      const date = hit.userData.date as string;
+      if (hit.userData.kind !== 'card') {
+        sceneStateRef.current.wiggleEnd.set(key, performance.now() + 450);
+        callbacksRef.current.onWeekendClick(date);
+        return;
+      }
+      const tip = findTip(date);
       if (!tip) return;
-
       if (isTipLocked(tip, activeDayRef.current)) {
-        sceneStateRef.current.wiggleEnd.set(tip.day, performance.now() + 450);
+        sceneStateRef.current.wiggleEnd.set(key, performance.now() + 450);
         callbacksRef.current.onLockedClick(tip);
       } else {
         callbacksRef.current.onSelect(tip);
@@ -643,62 +848,49 @@ export const AdventThreeGrid: React.FC<AdventThreeGridProps> = ({
     renderer.domElement.addEventListener('pointerup', handlePointerUp);
 
     const handleResize = () => {
-      if (!container) return;
       const w = container.clientWidth || 1000;
-      const nextMetrics = getLayoutMetrics(w, tipsRef.current.length);
-      const nextH = Math.max(
-        360,
-        nextMetrics.rows * (nextMetrics.cols === 2 ? 235 : nextMetrics.cols === 4 ? 220 : 210)
-      );
-      container.style.height = `${nextH}px`;
-      camera.aspect = w / nextH;
-      const nextAspect = w / nextH;
-      const dH = (totalH / 2 + 0.7) / Math.tan(fovRad / 2);
-      const dW = (totalW / 2 + 0.7) / (Math.tan(fovRad / 2) * nextAspect);
-      camera.position.z = Math.max(dH, dW);
+      const h = sizeFor(w);
+      container.style.height = `${h}px`;
+      camera.aspect = w / h;
+      camera.position.z = fitDistance(w / h);
       camera.updateProjectionMatrix();
-      renderer.setSize(w, nextH);
+      renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
 
-    // 60fps 3D Animation Loop
     let rafId = 0;
     const camPos = { x: 0, y: 0 };
+    // Parallax amplitude kept well inside MARGIN so edges never get cropped
+    const PARALLAX_X = Math.min(0.75, margin.x * 0.7);
+    const PARALLAX_Y = Math.min(0.5, margin.y * 0.6);
 
     const animate = () => {
       rafId = requestAnimationFrame(animate);
       const now = performance.now();
-
-      // Smooth 3D camera parallax across the wall of cards
-      const targetCamX = parallaxRef.current
-        ? sceneStateRef.current.targetParallax.x * 1.45
-        : 0;
-      const targetCamY = parallaxRef.current
-        ? -sceneStateRef.current.targetParallax.y * 1.05
-        : 0;
-
+      const tp = sceneStateRef.current.targetParallax;
+      const targetCamX = parallaxRef.current ? tp.x * PARALLAX_X : 0;
+      const targetCamY = parallaxRef.current ? -tp.y * PARALLAX_Y : 0;
       camPos.x += (targetCamX - camPos.x) * 0.08;
       camPos.y += (targetCamY - camPos.y) * 0.08;
       camera.position.x = camPos.x;
       camera.position.y = camPos.y;
       camera.lookAt(0, 0, 0);
 
-      meshes.forEach((mesh, day) => {
-        const isHovered = sceneStateRef.current.hoveredDay === day;
-        const meshTip = tipsRef.current.find((t) => t.day === day);
-        const isFuture = !meshTip || isTipLocked(meshTip, activeDayRef.current);
+      meshes.forEach((mesh, key) => {
+        const isCard = mesh.userData.kind === 'card';
+        const isHovered = sceneStateRef.current.hoveredKey === key;
+        const tip = isCard ? findTip(mesh.userData.date as string) : undefined;
+        const locked = !tip || isTipLocked(tip, activeDayRef.current);
 
-        // Subtle idle 3D breathing + pop-forward on hover
-        const targetZ = isHovered ? (isFuture ? 0.14 : 0.48) : 0;
-        const targetRx = isHovered && !isFuture ? -0.09 : 0;
-        const targetRy = isHovered && !isFuture ? 0.11 : 0;
-
+        const baseZ = isCard ? 0 : -0.07;
+        const targetZ = baseZ + (isHovered && isCard ? (locked ? 0.14 : 0.42) : 0);
+        const targetRx = isHovered && isCard && !locked ? -0.08 : 0;
+        const targetRy = isHovered && isCard && !locked ? 0.1 : 0;
         let targetRz = 0;
-        const wiggleUntil = sceneStateRef.current.wiggleEnd.get(day);
+        const wiggleUntil = sceneStateRef.current.wiggleEnd.get(key);
         if (wiggleUntil && now < wiggleUntil) {
-          targetRz = Math.sin((wiggleUntil - now) * 0.045) * 0.1;
+          targetRz = Math.sin((wiggleUntil - now) * 0.045) * (isCard ? 0.1 : 0.04);
         }
-
         mesh.position.z += (targetZ - mesh.position.z) * 0.16;
         mesh.rotation.x += (targetRx - mesh.rotation.x) * 0.14;
         mesh.rotation.y += (targetRy - mesh.rotation.y) * 0.14;
@@ -716,49 +908,39 @@ export const AdventThreeGrid: React.FC<AdventThreeGridProps> = ({
       renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
-      boxGeo.dispose();
+      geometries.forEach((g) => g.dispose());
       meshes.forEach((m) => {
-        if (Array.isArray(m.material)) {
-          m.material.forEach((mat) => mat.dispose());
-        }
+        if (Array.isArray(m.material)) m.material.forEach((mat) => mat.dispose());
       });
       textures.forEach((t) => t.dispose());
       renderer.dispose();
     };
-    // Rebuild geometry layout when visible tip list or responsive column count changes
+    // Textures are refreshed by the effect below; rebuild only when the layout changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tips.map((t) => t.day).join(','), colsCount]);
+  }, [layoutSignature]);
 
-  // Incrementally refresh textures & side colors when tips, activeDay, openedDays, or bookmarks change
+  // Incrementally refresh card faces & side colours
   useEffect(() => {
     const { renderer, meshes, textures } = sceneStateRef.current;
     if (!renderer || meshes.size === 0) return;
     const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 
     tips.forEach((tip) => {
-      const mesh = meshes.get(tip.day);
+      const key = `c:${tip.date}`;
+      const mesh = meshes.get(key);
       if (!mesh || !Array.isArray(mesh.material)) return;
-
       const isFuture = isTipLocked(tip, activeDay);
       const isOpened = !isFuture && openedDays.includes(tip.day);
-      const isBookmarked = bookmarkedDays.includes(tip.day);
-
       const stylePreset = CARD_STYLES[tip.cardStyle] || CARD_STYLES['deloitte-emerald'];
-      const sideHex = isFuture ? '#CBD5E1' : isOpened ? '#94A3B8' : stylePreset.edgeColor;
+      const sideHex = isOpened ? '#B91C1C' : stylePreset.edgeColor;
+      for (let i = 0; i < 4; i++) (mesh.material[i] as THREE.MeshStandardMaterial).color.set(sideHex);
 
-      // Update side materials (0..3)
-      for (let i = 0; i < 4; i++) {
-        const mat = mesh.material[i] as THREE.MeshStandardMaterial;
-        mat.color.set(sideHex);
-      }
-
-      // Update front face CanvasTexture (index 4)
-      const oldTex = textures.get(tip.day);
-      const newTex = buildCardFaceTexture(tip, activeDay, isOpened, isBookmarked, maxAnisotropy);
+      const oldTex = textures.get(key);
+      const newTex = buildCardFaceTexture(tip, activeDay, isOpened, bookmarkedDays.includes(tip.day), maxAnisotropy);
       const frontMat = mesh.material[4] as THREE.MeshStandardMaterial;
       frontMat.map = newTex;
       frontMat.needsUpdate = true;
-      textures.set(tip.day, newTex);
+      textures.set(key, newTex);
       oldTex?.dispose();
     });
   }, [tips, activeDay, openedDays, bookmarkedDays]);

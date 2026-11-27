@@ -160,6 +160,8 @@ export interface Visitor {
 export interface AdminPreview {
   date: string; // YYYY-MM-DD
   includeDrafts: boolean;
+  /** Test mode: every card is openable, whatever its date. */
+  unlockAll?: boolean;
 }
 
 export type TrackedEventType = 'copilot' | 'copy' | 'resource';
