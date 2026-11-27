@@ -36,7 +36,7 @@ const MiniSlide: React.FC<{ slide: QuizSlide }> = ({ slide }) => {
   const t = SLIDE_THEME[slide.theme] ?? SLIDE_THEME.light;
   return (
     <div
-      className={`relative w-full aspect-video rounded-lg border-2 border-[#0F172A] overflow-hidden ${t.bg} p-2.5 sm:p-3 text-left`}
+      className={`relative w-full aspect-video rounded-lg border border-[#1C2B24]/15 overflow-hidden ${t.bg} p-2.5 sm:p-3 text-left`}
     >
       <div className={`absolute left-0 top-0 h-full w-1.5 ${t.bar}`} />
       <div className={`font-display font-bold text-[11px] sm:text-[13px] leading-tight ${t.title} pl-1.5`}>
@@ -122,7 +122,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
   if (done) {
     const perfect = score === total;
     return (
-      <div className="rounded-2xl border-2 border-[#0F172A] bg-white p-5 text-center shadow-[4px_4px_0px_#0F172A] animate-pop-in">
+      <div className="rounded-2xl border border-[#1C2B24]/15 bg-white p-5 text-center shadow-sm animate-pop-in">
         <div className="text-5xl animate-bounce-in">{perfect ? '🏆' : score > 0 ? '🎉' : '🤓'}</div>
         <div className="font-display text-2xl font-bold mt-2">
           {score} / {total} bonne{score > 1 ? 's' : ''} réponse{score > 1 ? 's' : ''}
@@ -135,7 +135,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
             : 'Pas grave : vous venez d’apprendre quelque chose de nouveau.'}
         </p>
         {quiz.outro && (
-          <div className="mt-4 text-left text-sm whitespace-pre-line rounded-xl bg-[#FEF9C3] border-2 border-[#0F172A] p-3.5">
+          <div className="mt-4 text-left text-sm whitespace-pre-line rounded-xl bg-[#FEF9C3] border border-[#1C2B24]/15 p-3.5">
             {quiz.outro}
           </div>
         )}
@@ -151,10 +151,10 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
   }
 
   return (
-    <div className="rounded-2xl border-2 border-[#0F172A] bg-white shadow-[4px_4px_0px_#0F172A] overflow-hidden">
+    <div className="rounded-2xl border border-[#1C2B24]/15 bg-white shadow-sm overflow-hidden">
       {/* Header */}
       <div
-        className="flex items-center justify-between gap-3 px-4 py-2.5 border-b-2 border-[#0F172A] animate-hero-shift"
+        className="flex items-center justify-between gap-3 px-4 py-2.5 border-b-2 border-[#1C2B24]/15 animate-hero-shift"
         style={{ backgroundImage: `linear-gradient(110deg, #FEF9C3, #FFFFFF, ${accentHex}33, #FEF9C3)` }}
       >
         <span className="font-display font-bold text-sm flex items-center gap-1.5">
@@ -166,7 +166,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
             {quiz.questions.map((_, i) => (
               <span
                 key={i}
-                className={`h-2.5 rounded-full border border-[#0F172A] transition-all ${
+                className={`h-2.5 rounded-full border border-[#1C2B24]/15 transition-all ${
                   i < index ? 'w-2.5 bg-[#86BC25]' : i === index ? 'w-6 bg-[#0F172A]' : 'w-2.5 bg-white'
                 }`}
               />
@@ -203,16 +203,16 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
                 disabled={answered}
                 onClick={() => handlePick(i)}
                 style={{ animationDelay: `${i * 60}ms` }}
-                className={`animate-slide-up relative rounded-xl border-2 border-[#0F172A] text-left transition-all cursor-pointer disabled:cursor-default ${
+                className={`animate-slide-up relative rounded-xl border border-[#1C2B24]/15 text-left transition-all cursor-pointer disabled:cursor-default ${
                   isTrueFalse ? 'py-4 px-3 text-center' : 'p-3'
                 } ${
                   reveal
-                    ? 'bg-[#DCFCE7] shadow-[3px_3px_0px_#16A34A] -translate-y-0.5'
+                    ? 'bg-[#DCFCE7] shadow-sm -translate-y-0.5'
                     : wrongPick
-                    ? 'bg-[#FFE4E6] shadow-[3px_3px_0px_#E11D48]'
+                    ? 'bg-[#FFE4E6] shadow-sm'
                     : answered
                     ? 'bg-[#F8FAFC] opacity-60'
-                    : 'bg-white shadow-[3px_3px_0px_#0F172A] hover:-translate-y-0.5 hover:bg-[#F7FEE7]'
+                    : 'bg-white shadow-sm hover:-translate-y-0.5 hover:bg-[#F7FEE7]'
                 }`}
               >
                 {opt.slide && <MiniSlide slide={opt.slide} />}
@@ -221,7 +221,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
                     src={opt.image}
                     alt={opt.label}
                     loading="lazy"
-                    className="w-full aspect-video object-cover rounded-lg border-2 border-[#0F172A]"
+                    className="w-full aspect-video object-cover rounded-lg border border-[#1C2B24]/15"
                   />
                 )}
                 <span
@@ -248,7 +248,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
         {/* Feedback */}
         {answered && (
           <div
-            className={`rounded-xl border-2 border-[#0F172A] p-3.5 animate-pop-in ${
+            className={`rounded-xl border border-[#1C2B24]/15 p-3.5 animate-pop-in ${
               pickedCorrect ? 'bg-[#F0FDF4]' : 'bg-[#FFF7ED]'
             }`}
           >

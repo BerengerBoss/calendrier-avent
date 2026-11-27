@@ -356,10 +356,10 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
                 key={m.id}
                 type="button"
                 onClick={() => setMetric(m.id)}
-                className={`px-2.5 py-1 rounded-lg border-2 text-[11px] font-bold cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer ${
                   metric === m.id
-                    ? 'border-[#0F172A] bg-[#0F172A] text-[#A3E635]'
-                    : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] hover:border-[#0F172A]'
+                    ? 'border-[#1C2B24]/15 bg-[#0F172A] text-[#A3E635]'
+                    : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] hover:border-[#1C2B24]/15'
                 }`}
               >
                 {m.label}
@@ -433,13 +433,13 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher un nom…"
-                className="pl-8 pr-3 py-1.5 rounded-xl border-2 border-[#0F172A] text-xs font-medium w-48"
+                className="pl-8 pr-3 py-1.5 rounded-xl border border-[#1C2B24]/15 text-xs font-medium w-48"
               />
             </div>
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="px-2.5 py-1.5 rounded-xl border-2 border-[#0F172A] text-xs font-bold bg-white"
+              className="px-2.5 py-1.5 rounded-xl border border-[#1C2B24]/15 text-xs font-bold bg-white"
               aria-label="Trier par"
             >
               <option value="last_seen">Tri : dernière visite</option>

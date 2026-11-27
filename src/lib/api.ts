@@ -184,7 +184,7 @@ function fail(prefix: string, error: { message?: string } | null): never {
 //  Public
 // ---------------------------------------------------------------------------
 export const DEFAULT_SETTINGS: CalendarSettings = {
-  title: 'Le Calendrier de l’Avent de l’IA 🎄🤖',
+  title: 'Le Calendrier de l’Avent de l’IA',
   subtitle:
     'Chaque jour ouvré, grattez une case pour découvrir une astuce concrète, un usage Copilot ou une ressource utile en mission.',
   start_date: '2026-12-01',

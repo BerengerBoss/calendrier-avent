@@ -27,9 +27,9 @@ interface TipFormProps {
 }
 
 const inputCls =
-  'w-full px-3 py-2 rounded-xl border-2 border-[#0F172A] text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#86BC25]';
+  'w-full px-3 py-2 rounded-xl border border-[#1C2B24]/15 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#86BC25]';
 const smallInputCls =
-  'w-full px-3 py-1.5 rounded-xl border-2 border-[#0F172A] text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#86BC25]';
+  'w-full px-3 py-1.5 rounded-xl border border-[#1C2B24]/15 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#86BC25]';
 
 const MEDIA_KINDS: { id: TipMediaKind; label: string }[] = [
   { id: 'youtube', label: 'Vidéo YouTube' },
@@ -139,10 +139,10 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
       {/* Style & preview */}
       <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-4 items-start">
         <div
-          className={`rounded-2xl p-3.5 min-h-[160px] border-2 border-[#0F172A] shadow-[3px_3px_0px_#0F172A] flex flex-col justify-between ${style.bgClass}`}
+          className={`rounded-2xl p-3.5 min-h-[160px] border border-[#1C2B24]/15 shadow-sm flex flex-col justify-between ${style.bgClass}`}
         >
           <div className="flex items-center justify-between">
-            <span className="w-8 h-8 rounded-lg bg-[#FAF9F5] border-2 border-[#0F172A] flex items-center justify-center font-display font-bold text-base">
+            <span className="w-8 h-8 rounded-lg bg-[#FAF9F5] border border-[#1C2B24]/15 flex items-center justify-center font-display font-bold text-base">
               {dayNumber}
             </span>
             {content.badgeTag && (
@@ -151,7 +151,7 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
               </span>
             )}
           </div>
-          <div className="text-center bg-white/90 rounded-lg py-1 px-2 border border-[#0F172A] text-[10px] font-extrabold">
+          <div className="text-center bg-white/90 rounded-lg py-1 px-2 border border-[#1C2B24]/15 text-[10px] font-extrabold">
             Gratter la case ✨
           </div>
           <div className="text-[10px] font-bold bg-white/80 px-2 py-0.5 rounded w-fit truncate max-w-full">
@@ -166,13 +166,13 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
                 key={preset.id}
                 type="button"
                 onClick={() => onChange({ cardStyle: preset.id as CardStyleId })}
-                className={`flex items-center gap-2 p-2 rounded-xl border-2 text-left text-xs font-bold cursor-pointer transition-all ${
+                className={`flex items-center gap-2 p-2 rounded-xl border text-left text-xs font-bold cursor-pointer transition-all ${
                   content.cardStyle === preset.id
-                    ? 'border-[#0F172A] bg-[#F0FDF4] shadow-[2px_2px_0px_#0F172A]'
-                    : 'border-[#E2E8F0] hover:border-[#0F172A]'
+                    ? 'border-[#1C2B24]/15 bg-[#F0FDF4] shadow-sm'
+                    : 'border-[#E2E8F0] hover:border-[#1C2B24]/15'
                 }`}
               >
-                <span className={`w-5 h-5 rounded-md border border-[#0F172A] shrink-0 ${preset.bgClass}`} />
+                <span className={`w-5 h-5 rounded-md border border-[#1C2B24]/15 shrink-0 ${preset.bgClass}`} />
                 <span className="truncate">{preset.name}</span>
               </button>
             ))}
@@ -246,7 +246,7 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
       </div>
 
       {/* Fun fact */}
-      <div className="p-3.5 rounded-2xl bg-[#FFFBEB] border-2 border-[#FDE68A] space-y-2">
+      <div className="p-3.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] space-y-2">
         <div className="flex items-center gap-1.5 text-xs font-bold">
           <Lightbulb className="w-4 h-4 text-[#B45309]" />
           « Le saviez-vous ? » (optionnel)
@@ -260,7 +260,7 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
       </div>
 
       {/* Media */}
-      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border-2 border-[#E2E8F0] space-y-3">
+      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-3">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-xs font-bold">
             <Film className="w-4 h-4 text-[#BE123C]" />
@@ -341,7 +341,7 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
       </div>
 
       {/* Copilot */}
-      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border-2 border-[#E2E8F0] space-y-3">
+      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-3">
         <div className="flex items-center gap-1.5 text-xs font-bold">
           <Bot className="w-4 h-4 text-[#0EA5E9]" />
           Prompt &amp; redirection Microsoft Copilot
@@ -386,7 +386,7 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
       </div>
 
       {/* Quiz */}
-      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border-2 border-[#E2E8F0] space-y-2">
+      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-xs font-bold">
             <HelpCircle className="w-4 h-4 text-[#6D28D9]" />
@@ -414,7 +414,7 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
       </div>
 
       {/* Resources */}
-      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border-2 border-[#E2E8F0] space-y-3">
+      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-3">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-xs font-bold">
             <Link2 className="w-4 h-4 text-[#86BC25]" />
@@ -440,7 +440,7 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
                 <select
                   value={res.type}
                   onChange={(e) => updateResource(res.id, { type: e.target.value as ResourceType })}
-                  className="sm:col-span-3 px-2 py-1.5 rounded-lg border border-[#0F172A] text-xs font-semibold bg-white"
+                  className="sm:col-span-3 px-2 py-1.5 rounded-lg border border-[#1C2B24]/15 text-xs font-semibold bg-white"
                 >
                   {(Object.keys(RESOURCE_TYPE_META) as ResourceType[]).map((t) => (
                     <option key={t} value={t}>
@@ -453,14 +453,14 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
                   value={res.label}
                   placeholder="Titre du lien"
                   onChange={(e) => updateResource(res.id, { label: e.target.value })}
-                  className="sm:col-span-4 px-2.5 py-1.5 rounded-lg border border-[#0F172A] text-xs font-medium"
+                  className="sm:col-span-4 px-2.5 py-1.5 rounded-lg border border-[#1C2B24]/15 text-xs font-medium"
                 />
                 <input
                   type="url"
                   value={res.url}
                   placeholder="https://…"
                   onChange={(e) => updateResource(res.id, { url: e.target.value })}
-                  className="sm:col-span-4 px-2.5 py-1.5 rounded-lg border border-[#0F172A] text-xs font-mono"
+                  className="sm:col-span-4 px-2.5 py-1.5 rounded-lg border border-[#1C2B24]/15 text-xs font-mono"
                 />
                 <button
                   type="button"

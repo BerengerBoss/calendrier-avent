@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
-  Sparkles,
   BookOpen,
   Box,
   Lock,
   CalendarDays,
   CheckCircle2,
-  Gift,
   Loader2,
   RefreshCw,
   Eye,
@@ -571,7 +569,7 @@ function CalendarApp() {
         {loadError ? (
           <div className="cartoon-box-lg rounded-3xl bg-white p-8 max-w-md text-center">
             <div className="text-4xl mb-3">📡</div>
-            <h1 className="font-display text-xl font-bold">Calendrier momentanément indisponible</h1>
+            <h1 className="font-display text-xl font-semibold">Calendrier momentanément indisponible</h1>
             <p className="text-sm text-[#475569] mt-2">{loadError}</p>
             <button
               type="button"
@@ -598,7 +596,7 @@ function CalendarApp() {
       <PageSnow />
       {/* Admin preview banner (only ever rendered for an authenticated admin) */}
       {previewActive && preview && (
-        <div className="relative z-30 bg-[#FEF3C7] border-b-2 border-[#0F172A] px-4 py-2 text-center text-xs font-bold flex flex-wrap items-center justify-center gap-3">
+        <div className="relative z-30 bg-[#FEF3C7] border-b-2 border-[#1C2B24]/15 px-4 py-2 text-center text-xs font-bold flex flex-wrap items-center justify-center gap-3">
           <span className="inline-flex items-center gap-1.5">
             <Eye className="w-4 h-4" />
             Aperçu admin au <span className="underline capitalize">{formatLongFR(preview.date)}</span>
@@ -609,7 +607,7 @@ function CalendarApp() {
           <button
             type="button"
             onClick={() => setShowBackoffice(true)}
-            className="px-2.5 py-0.5 rounded-lg bg-white border border-[#0F172A] text-xs font-bold hover:bg-[#86BC25] cursor-pointer"
+            className="px-2.5 py-0.5 rounded-lg bg-white border border-[#1C2B24]/15 text-xs font-bold hover:bg-[#86BC25] cursor-pointer"
           >
             Régler l&apos;aperçu
           </button>
@@ -624,123 +622,103 @@ function CalendarApp() {
       )}
 
       {/* Main Layout */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 flex-1">
-        <header className="cartoon-box-lg relative rounded-3xl bg-[#FFFDF7] p-5 sm:p-7 pt-9 sm:pt-10 mb-6 overflow-hidden">
-          <Garland />
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="flex items-start sm:items-center gap-4 sm:gap-5">
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-6 pb-12 flex-1">
+        <header className="cartoon-box-lg rounded-2xl bg-[#FBF6EC] mb-6 overflow-hidden">
+          <div className="h-1.5 bg-[#A8201A]" />
+          <div className="px-5 sm:px-8 pt-5 pb-5 sm:pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#1C2B24]/10">
               <button
                 type="button"
                 onClick={handleEmblemClick}
-                title="Calendrier Transfo & Change"
-                className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl bg-gradient-to-br from-[#DC2626] to-[#991B1B] border-[2.5px] border-[#0F172A] shadow-[4px_4px_0px_#0F172A] flex items-center justify-center text-white hover:-translate-y-0.5 transition-transform cursor-pointer animate-float"
+                title="Deloitte Transformation & Change"
+                className="flex items-baseline gap-3 cursor-pointer text-left"
               >
-                <Gift className="w-8 h-8 sm:w-10 sm:h-10" />
+                <span className="text-[26px] sm:text-[30px] font-bold tracking-tight text-black leading-none" style={{ fontFamily: 'Inter, Arial, sans-serif' }}>
+                  Deloitte<span className="text-[#86BC25]">.</span>
+                </span>
+                <span className="text-sm sm:text-[15px] font-medium text-[#1C2B24]/80">Transformation &amp; Change</span>
               </button>
-
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0F172A] text-white text-[11px] font-bold tracking-wide">
-                    <span className="w-2 h-2 rounded-full bg-[#86BC25]" />
-                    DELOITTE • TRANSFORMATION &amp; CHANGE
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#DC2626] text-white text-[11px] font-bold">
-                    🎅 Édition Noël {cal.start_date.slice(0, 4)}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FBBF24] text-[#0F172A] text-[11px] font-bold">
-                    🤖 100 % IA
-                  </span>
-                </div>
-
-                <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight leading-tight text-festive-title">
-                  {cal.title}
-                </h1>
-                <p className="text-sm sm:text-[15px] text-[#475569] mt-1 max-w-2xl">{cal.subtitle}</p>
+              <div className="flex items-center gap-4 text-sm text-[#1C2B24]/70">
+                <span className="inline-flex items-center gap-1.5 capitalize">
+                  <CalendarDays className="w-4 h-4" />
+                  {formatDayMonthFR(viewDate)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#1F5A43]" />
+                  {openedAvailableCount}/{progressDenominator} ouverte{openedAvailableCount > 1 ? 's' : ''}
+                </span>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-3 shrink-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="rounded-xl bg-[#F8FAFC] border-2 border-[#0F172A] px-3 py-1.5 flex items-center gap-2 text-xs font-bold capitalize">
-                  <CalendarDays className="w-4 h-4 text-[#0284C7]" />
-                  <span>{formatDayMonthFR(viewDate)}</span>
-                </div>
-
-                <div className="rounded-xl bg-[#ECFCCB] border-2 border-[#0F172A] px-3 py-1.5 flex items-center gap-2 text-xs font-bold text-[#3F6212]">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>
-                    {openedAvailableCount}/{progressDenominator} découvert
-                    {openedAvailableCount > 1 ? 's' : ''}
-                  </span>
-                </div>
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 pt-5">
+              <div className="min-w-0">
+                <h1 className="font-display text-3xl sm:text-4xl lg:text-[44px] font-semibold text-[#A8201A] tracking-tight leading-[1.1]">
+                  {cal.title}
+                </h1>
+                {cal.subtitle && (
+                  <p className="text-[15px] sm:text-base text-[#1C2B24]/75 mt-2 max-w-2xl">{cal.subtitle}</p>
+                )}
               </div>
-
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowPastDrawer(true)}
-                  className="cartoon-btn inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#DC2626] text-white text-xs font-bold cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#A8201A] hover:bg-[#8E1B16] text-white text-sm font-semibold cursor-pointer transition-colors"
                 >
                   <BookOpen className="w-4 h-4" />
-                  Voir les tips passés ({openedAvailableCount})
+                  Cases ouvertes ({openedAvailableCount})
                 </button>
-
                 <button
                   type="button"
                   onClick={handleToggleParallax}
-                  className={`cartoon-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer ${
-                    parallaxEnabled ? 'bg-[#86BC25] text-[#0F172A]' : 'bg-[#F1F5F9] text-[#64748B]'
-                  }`}
+                  title="Effet de profondeur au survol"
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#1C2B24]/15 text-sm font-medium text-[#1C2B24]/80 hover:bg-white cursor-pointer transition-colors"
                 >
-                  <Box className="w-3.5 h-3.5" />
-                  Parallax 3D {parallaxEnabled ? 'ON' : 'OFF'}
+                  <Box className="w-4 h-4" />
+                  3D {parallaxEnabled ? 'activée' : 'désactivée'}
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Filter Strip */}
-          <div className="mt-5 pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {(
-                [
-                  { id: 'all', label: `Toutes (${tips.length})` },
-                  { id: 'to-scratch', label: `✨ À gratter (${toScratchCount})` },
-                  { id: 'opened', label: `✅ Débloquées (${openedAvailableCount})` },
-                  { id: 'locked', label: `🔒 À venir (${lockedCount})` },
-                ] as { id: GridFilter; label: string }[]
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setGridFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl border-2 text-xs font-bold cursor-pointer transition-all ${
-                    gridFilter === tab.id
-                      ? 'border-[#0F172A] bg-[#166534] text-white'
-                      : 'border-[#E2E8F0] bg-white text-[#475569] hover:border-[#0F172A] hover:text-[#0F172A]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex flex-wrap rounded-lg bg-[#1C2B24]/[0.06] p-1 gap-1">
+                {(
+                  [
+                    { id: 'all', label: `Calendrier` },
+                    { id: 'to-scratch', label: `À gratter (${toScratchCount})` },
+                    { id: 'opened', label: `Ouvertes (${openedAvailableCount})` },
+                    { id: 'locked', label: `À venir (${lockedCount})` },
+                  ] as { id: GridFilter; label: string }[]
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setGridFilter(tab.id)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors ${
+                      gridFilter === tab.id
+                        ? 'bg-white text-[#1C2B24] shadow-sm'
+                        : 'text-[#1C2B24]/65 hover:text-[#1C2B24]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              {toScratchCount > 0 && (
+                <span className="text-sm font-medium text-[#A8201A]">
+                  {toScratchCount} case{toScratchCount > 1 ? 's' : ''} à gratter
+                </span>
+              )}
             </div>
-
-            {toScratchCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#BE123C]">
-                <Sparkles className="w-3.5 h-3.5" />
-                {toScratchCount} case{toScratchCount > 1 ? 's' : ''} prête
-                {toScratchCount > 1 ? 's' : ''} à gratter
-              </span>
-            )}
           </div>
         </header>
 
-        <main className="rounded-3xl border-2 border-white/15 bg-white/5 p-2 sm:p-4">
+        <main className="rounded-2xl bg-black/10 p-1 sm:p-3">
           {gridFilter === 'all' && <WeekdayHeader />}
           {filteredTips.length === 0 ? (
             <div className="cartoon-box rounded-3xl bg-white p-12 text-center max-w-md mx-auto my-8">
               <div className="text-4xl mb-3">🎄</div>
-              <h3 className="font-display text-xl font-bold">
+              <h3 className="font-display text-xl font-semibold">
                 {tips.length === 0 ? 'Le calendrier est terminé' : 'Aucune case dans ce filtre'}
               </h3>
               <p className="text-sm text-[#64748B] mt-1 mb-4">
@@ -776,11 +754,10 @@ function CalendarApp() {
         </main>
       </div>
 
-      <footer className="relative z-10 border-t-4 border-[#DC2626] bg-[#FFFDF7] px-4 sm:px-8 py-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#64748B]">
+      <footer className="relative z-10 border-t border-white/10 px-4 sm:px-8 py-4">
+        <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white/60">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#86BC25] inline-block" />
-            <strong className="text-[#0F172A]">Deloitte Transfo &amp; Change</strong>
+            <strong className="text-white/80">Deloitte<span className="text-[#86BC25]">.</span> Transformation &amp; Change</strong>
             {visitor && (
               <>
                 <span>—</span>
@@ -791,7 +768,7 @@ function CalendarApp() {
                 <button
                   type="button"
                   onClick={handleSwitchUser}
-                  className="underline hover:text-[#0F172A] cursor-pointer"
+                  className="underline hover:text-white cursor-pointer"
                 >
                   Ce n&apos;est pas vous ?
                 </button>
@@ -803,7 +780,7 @@ function CalendarApp() {
             type="button"
             onClick={openAdmin}
             title="Accès Studio Admin"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white/40 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <Lock className="w-3 h-3" />
             {isAdmin ? 'Studio admin' : 'Admin'}
@@ -872,7 +849,7 @@ function CalendarApp() {
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] animate-pop-in px-4 w-max max-w-full">
-          <div className="cartoon-box rounded-2xl bg-[#0F172A] text-white px-5 py-2.5 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-[4px_4px_0px_#86BC25]">
+          <div className="cartoon-box rounded-2xl bg-[#0F172A] text-white px-5 py-2.5 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm">
             <span>{toast}</span>
           </div>
         </div>
@@ -883,39 +860,18 @@ function CalendarApp() {
 
 export default App;
 
-/** String of twinkling Christmas lights across the top of the header. */
-function Garland() {
-  const colors = ['#DC2626', '#FBBF24', '#16A34A', '#2563EB', '#EC4899'];
-  return (
-    <div aria-hidden className="pointer-events-none absolute top-0 left-0 right-0 h-8 overflow-hidden">
-      <svg className="absolute top-0 left-0 w-full h-5" preserveAspectRatio="none" viewBox="0 0 100 10">
-        <path d="M0 2 Q 5 8 10 2 T 20 2 T 30 2 T 40 2 T 50 2 T 60 2 T 70 2 T 80 2 T 90 2 T 100 2" fill="none" stroke="#14532D" strokeWidth="0.6" />
-      </svg>
-      <div className="absolute top-1 left-0 right-0 flex justify-around">
-        {Array.from({ length: 24 }, (_, i) => (
-          <span
-            key={i}
-            className="garland-bulb"
-            style={{ background: colors[i % colors.length], animationDelay: `${(i % 5) * 0.35}s`, marginTop: i % 2 ? 6 : 10 }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** Weekday names above the calendar grid (wide screens only, matches the 3D columns). */
 function WeekdayHeader() {
   const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
   return (
-    <div aria-hidden className="hidden min-[960px]:flex px-[6.1%] pt-2 -mb-6 gap-[1.8%] text-center">
+    <div aria-hidden className="hidden min-[960px]:flex px-[3.65%] pt-3 -mb-3 gap-[2%] text-center">
       {days.map((d) => (
-        <div key={d} className="flex-[2.05] text-[11px] font-bold uppercase tracking-widest text-[#FDE68A]">
+        <div key={d} className="flex-[2.05] text-xs font-medium uppercase tracking-[0.18em] text-white/70">
           {d}
         </div>
       ))}
-      {['Sam.', 'Dim.'].map((d) => (
-        <div key={d} className="flex-[1.15] text-[11px] font-bold uppercase tracking-widest text-white/40">
+      {['Sam', 'Dim'].map((d) => (
+        <div key={d} className="flex-[0.95] text-xs font-medium uppercase tracking-[0.18em] text-white/35">
           {d}
         </div>
       ))}
@@ -923,15 +879,15 @@ function WeekdayHeader() {
   );
 }
 
-const PAGE_FLAKES = Array.from({ length: 34 }, (_, i) => {
+const PAGE_FLAKES = Array.from({ length: 18 }, (_, i) => {
   const r = (n: number) => ((Math.sin(i * 7.13 + n * 41.7) * 9301.17) % 1 + 1) % 1;
   return {
     left: `${Math.round(r(1) * 100)}%`,
-    size: 8 + Math.round(r(2) * 14),
+    size: 6 + Math.round(r(2) * 6),
     duration: 12 + r(3) * 14,
     delay: -r(4) * 26,
     drift: `${Math.round((r(5) - 0.5) * 120)}px`,
-    opacity: 0.35 + r(6) * 0.5,
+    opacity: 0.15 + r(6) * 0.3,
   };
 });
 
@@ -955,7 +911,7 @@ function PageSnow() {
             } as React.CSSProperties
           }
         >
-          ❄
+          •
         </span>
       ))}
     </div>
