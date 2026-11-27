@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Bot, Link2, Plus, Trash2, Film, HelpCircle, Lightbulb } from 'lucide-react';
+import { Bot, Link2, Plus, Trash2, Film, HelpCircle, Lightbulb, Upload, ClipboardPaste } from 'lucide-react';
+import { normalizeTipContent } from '../../lib/api';
 import {
   CardStyleId,
   CopilotTargetMode,
@@ -113,6 +114,72 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
     }
   };
 
+  // ---- JSON import (file or paste): a quiz alone, a full case, or an admin export ----
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const applyImport = (raw: string) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw.trim());
+    } catch {
+      setImportMsg({ ok: false, text: 'JSON invalide (vérifiez les virgules et les guillemets).' });
+      return;
+    }
+    let obj = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+    // Admin export: an array of cards, or one { publish_date, content }
+    if (Array.isArray(parsed) && parsed.length === 1 && parsed[0] && typeof parsed[0] === 'object') {
+      obj = parsed[0] as Record<string, unknown>;
+    }
+    if (obj && obj.content && typeof obj.content === 'object' && !Array.isArray(obj.content)) {
+      obj = obj.content as Record<string, unknown>;
+    }
+    if (!obj) {
+      setImportMsg({ ok: false, text: 'Format non reconnu : il faut un objet JSON (quiz ou case).' });
+      return;
+    }
+
+    // 1) A quiz alone
+    if (Array.isArray(obj.questions)) {
+      if (!validateQuiz(obj)) {
+        setImportMsg({ ok: false, text: 'Quiz invalide : chaque question doit avoir "kind" ("choice" ou "true-false") et "question".' });
+        return;
+      }
+      if (content.quiz && !window.confirm('Remplacer le quiz actuel de cette case ?')) return;
+      handleQuizText(JSON.stringify(obj, null, 2));
+      const n = (obj.questions as unknown[]).length;
+      setImportMsg({ ok: true, text: `Quiz importé (${n} question${n > 1 ? 's' : ''}). Pensez à enregistrer la case.` });
+      setImportText('');
+      return;
+    }
+
+    // 2) A full case (any subset of its fields)
+    const known = ['title', 'summary', 'content', 'category', 'emoji', 'quiz', 'media', 'promptOrAction', 'resources', 'funFact'];
+    if (!known.some((k) => k in obj!)) {
+      setImportMsg({ ok: false, text: 'Format non reconnu : ni quiz ("questions"), ni case ("title", "content", "quiz"…).' });
+      return;
+    }
+    if (obj.quiz !== undefined && obj.quiz !== null && !validateQuiz(obj.quiz)) {
+      setImportMsg({ ok: false, text: 'Le champ "quiz" de ce JSON est invalide.' });
+      return;
+    }
+    if (!window.confirm('Remplacer les champs de cette case par ceux du JSON ? (les champs absents du JSON sont conservés)')) return;
+    const merged = normalizeTipContent({ ...content, ...obj });
+    onChange(merged);
+    setImportMsg({ ok: true, text: 'Case importée. Vérifiez le résultat puis enregistrez.' });
+    setImportText('');
+  };
+
+  const handleImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      applyImport(await file.text());
+    } catch {
+      setImportMsg({ ok: false, text: 'Lecture du fichier impossible.' });
+    }
+  };
+
   // ---- Media ----
   const media = content.media;
   const patchMedia = (patch: Partial<TipMedia>) => {
@@ -136,6 +203,59 @@ export const TipForm: React.FC<TipFormProps> = ({ content, dayNumber, onChange, 
 
   return (
     <div className="space-y-5">
+      {/* JSON import */}
+      <div className="p-3.5 rounded-2xl bg-[#FBF1DC] border border-[#D9A441]/40 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-bold text-[#1C2B24]">
+            Importer un JSON <span className="font-normal text-[#1C2B24]/65">(quiz seul ou case complète)</span>
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1F5A43] hover:bg-[#174634] text-white text-xs font-semibold cursor-pointer">
+              <Upload className="w-3.5 h-3.5" /> Fichier .json
+              <input
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  void handleImportFile(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setImportOpen((o) => !o)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#1C2B24]/15 text-xs font-semibold cursor-pointer hover:bg-[#FBF6EC]"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" /> Coller un JSON
+            </button>
+          </div>
+        </div>
+        {importOpen && (
+          <div className="space-y-2">
+            <textarea
+              rows={6}
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder='Collez ici le JSON fourni, ex : { "title": "…", "questions": [ … ] }'
+              spellCheck={false}
+              className={`${smallInputCls} font-mono`}
+            />
+            <button
+              type="button"
+              disabled={!importText.trim()}
+              onClick={() => applyImport(importText)}
+              className="px-3.5 py-1.5 rounded-lg bg-[#A8201A] hover:bg-[#8E1B16] text-white text-xs font-semibold cursor-pointer disabled:opacity-40"
+            >
+              Appliquer à cette case
+            </button>
+          </div>
+        )}
+        {importMsg && (
+          <p className={`text-xs font-semibold ${importMsg.ok ? 'text-[#1F5A43]' : 'text-[#A8201A]'}`}>{importMsg.text}</p>
+        )}
+      </div>
+
       {/* Style & preview */}
       <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-4 items-start">
         <div
