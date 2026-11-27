@@ -504,7 +504,17 @@ begin
                            from events e where e.visitor_id = vi.id and e.type = 'open'), '[]'::json) as opened_dates,
                (select max(e.created_at) from events e where e.visitor_id = vi.id and e.type = 'open') as last_open_at,
                (select count(*) from events e where e.visitor_id = vi.id and e.type in ('copilot', 'copy')) as copilot_count,
-               (select count(*) from events e where e.visitor_id = vi.id and e.type = 'resource') as resource_count
+               (select count(*) from events e where e.visitor_id = vi.id and e.type = 'resource') as resource_count,
+               (select count(*) from quiz_answers q where q.visitor_id = vi.id and q.correct) as quiz_correct,
+               (select count(*) from quiz_answers q where q.visitor_id = vi.id) as quiz_total,
+               coalesce((select json_agg(json_build_object('card_date', qc.card_date, 'correct', qc.correct, 'total', qc.total)
+                                         order by qc.card_date)
+                           from (select q.card_date,
+                                        count(*) filter (where q.correct) as correct,
+                                        count(*) as total
+                                   from quiz_answers q
+                                  where q.visitor_id = vi.id
+                                  group by q.card_date) qc), '[]'::json) as quiz_by_card
           from visitors vi
       ) v
     ), '[]'::json),
@@ -519,6 +529,17 @@ begin
          where card_date is not null
          group by card_date
       ) c
+    ), '[]'::json),
+    'quiz_cards', coalesce((
+      select json_agg(q order by q.card_date)
+      from (
+        select card_date,
+               count(distinct visitor_id) as players,
+               count(*) filter (where correct) as correct,
+               count(*) as answers
+          from quiz_answers
+         group by card_date
+      ) q
     ), '[]'::json),
     'daily', coalesce((
       select json_agg(d order by d.day)

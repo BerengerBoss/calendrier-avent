@@ -479,6 +479,20 @@ export async function fetchDashboard(): Promise<DashboardData> {
       copilot_count: num(v.copilot_count),
       resource_count: num(v.resource_count),
       opened_dates: Array.isArray(v.opened_dates) ? v.opened_dates : [],
+      // absent with an older schema: zero instead of crashing
+      quiz_correct: num(v.quiz_correct),
+      quiz_total: num(v.quiz_total),
+      quiz_by_card: (Array.isArray(v.quiz_by_card) ? v.quiz_by_card : []).map((q) => ({
+        card_date: q.card_date,
+        correct: num(q.correct),
+        total: num(q.total),
+      })),
+    })),
+    quiz_cards: (Array.isArray(d.quiz_cards) ? d.quiz_cards : []).map((q) => ({
+      card_date: q.card_date,
+      players: num(q.players),
+      correct: num(q.correct),
+      answers: num(q.answers),
     })),
     cards: (d.cards ?? []).map((c) => ({
       card_date: c.card_date,

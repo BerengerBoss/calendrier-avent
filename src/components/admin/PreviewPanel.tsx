@@ -140,7 +140,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         {preview && (
           <p className="text-xs font-bold text-[#0369A1] capitalize">
             Aperçu actif : {formatLongFR(preview.date)} {preview.includeDrafts ? '(brouillons inclus)' : '(publiées uniquement)'}
-            {preview.unlockAll ? ' — toutes les cases déverrouillées' : ''}
+            {preview.unlockAll ? ' | toutes les cases déverrouillées' : ''}
           </p>
         )}
 

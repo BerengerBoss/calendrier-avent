@@ -37,15 +37,15 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0E3B2E]/80 backdrop-blur-sm">
       <div className="animate-pop-in w-full max-w-md rounded-3xl bg-[#FFFDF7] border-[3px] border-[#1C2B24]/15 shadow-sm p-6 sm:p-7">
         <div className="text-center mb-5">
           <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#86BC25] to-[#5D8A16] border border-[#1C2B24]/15 shadow-sm flex items-center justify-center text-white">
             <Gift className="w-8 h-8" />
           </div>
-          <h2 className="font-display text-2xl font-bold text-[#0F172A]">Bienvenue ! 🎄</h2>
-          <p className="text-sm text-[#475569] mt-1">{calendarTitle}</p>
-          <p className="text-xs text-[#64748B] mt-3">
+          <h2 className="font-display text-2xl font-bold text-[#1C2B24]">Bienvenue ! 🎄</h2>
+          <p className="text-sm text-[#1C2B24]/70 mt-1">{calendarTitle}</p>
+          <p className="text-xs text-[#1C2B24]/70 mt-3">
             Pour commencer, indiquez votre prénom et votre nom. Ils servent uniquement à suivre la
             participation au calendrier en interne.
           </p>
@@ -53,7 +53,7 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label htmlFor="gate-first" className="block text-xs font-bold text-[#0F172A] mb-1">
+            <label htmlFor="gate-first" className="block text-xs font-bold text-[#1C2B24] mb-1">
               Prénom
             </label>
             <input
@@ -64,11 +64,11 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
               maxLength={60}
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#1C2B24]/15 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
+              className="w-full px-4 py-2.5 rounded-xl border border-[#1C2B24]/15 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1F5A43]/30"
             />
           </div>
           <div>
-            <label htmlFor="gate-last" className="block text-xs font-bold text-[#0F172A] mb-1">
+            <label htmlFor="gate-last" className="block text-xs font-bold text-[#1C2B24] mb-1">
               Nom
             </label>
             <input
@@ -78,7 +78,7 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
               maxLength={60}
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#1C2B24]/15 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
+              className="w-full px-4 py-2.5 rounded-xl border border-[#1C2B24]/15 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1F5A43]/30"
             />
           </div>
 
@@ -87,7 +87,7 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
           <button
             type="submit"
             disabled={busy}
-            className="cartoon-btn w-full py-2.5 rounded-xl bg-[#86BC25] text-[#0F172A] font-display font-bold text-base cursor-pointer disabled:opacity-60 inline-flex items-center justify-center gap-2"
+            className="cartoon-btn w-full py-2.5 rounded-xl bg-[#1F5A43] text-white font-display font-bold text-base cursor-pointer disabled:opacity-60 inline-flex items-center justify-center gap-2"
           >
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
             Accéder au calendrier →

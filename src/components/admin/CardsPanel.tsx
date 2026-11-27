@@ -218,7 +218,7 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
               {outOfRange.map((c) => (
                 <div key={c.publish_date} className="flex items-center justify-between gap-2 text-xs">
                   <span className="truncate">
-                    {formatShortFR(c.publish_date)} — {c.content.title}
+                    {formatShortFR(c.publish_date)} | {c.content.title}
                   </span>
                   <button
                     type="button"
@@ -248,11 +248,11 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
                   <span className="text-[#64748B]">Aucune case créée pour ce jour.</span>
                 ) : savedStatus === 'published' ? (
                   <span className="font-bold text-[#3F6212]">
-                    ● Publiée —{' '}
+                    ● Publiée |{' '}
                     {isPastOrToday ? 'visible par tous en ce moment' : `visible automatiquement le ${formatDayMonthFR(selected)}`}
                   </span>
                 ) : (
-                  <span className="font-bold text-[#B45309]">● Brouillon — invisible pour le public</span>
+                  <span className="font-bold text-[#B45309]">● Brouillon | invisible pour le public</span>
                 )}
                 {dirty && <span className="ml-2 font-bold text-[#BE123C]">• modifications non enregistrées</span>}
               </p>
@@ -295,7 +295,7 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
                         <option value="">— Choisir une case —</option>
                         {duplicableCards.map((c) => (
                           <option key={c.publish_date} value={c.publish_date}>
-                            {formatShortFR(c.publish_date)} — {c.content.emoji} {c.content.title}
+                            {formatShortFR(c.publish_date)} | {c.content.emoji} {c.content.title}
                           </option>
                         ))}
                       </select>

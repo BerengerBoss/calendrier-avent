@@ -186,6 +186,16 @@ export interface DashboardVisitor {
   last_open_at: string | null;
   copilot_count: number;
   resource_count: number;
+  quiz_correct: number;
+  quiz_total: number;
+  quiz_by_card: { card_date: string; correct: number; total: number }[];
+}
+
+export interface DashboardQuizCard {
+  card_date: string;
+  players: number;
+  correct: number;
+  answers: number;
 }
 
 export interface DashboardCardStat {
@@ -206,6 +216,7 @@ export interface DashboardData {
   today: string;
   visitors: DashboardVisitor[];
   cards: DashboardCardStat[];
+  quiz_cards: DashboardQuizCard[];
   daily: DashboardDaily[];
   new_visitors: { day: string; count: number }[];
   hours: { hour: number; opens: number }[];

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   BookOpen,
-  Box,
   Lock,
   CalendarDays,
   CheckCircle2,
@@ -45,7 +44,6 @@ import {
   consumeNewSessionFlag,
   loadBookmarks,
   loadLocalOpened,
-  loadParallax,
   loadShareToken,
   loadLocalQuiz,
   quizAnswerKey,
@@ -55,7 +53,6 @@ import {
   markSessionVisited,
   saveBookmarks,
   saveLocalOpened,
-  saveParallax,
   saveVisitor,
 } from './utils/storage';
 import {
@@ -142,7 +139,6 @@ function CalendarApp() {
   // Quiz answers (first answer per question counts) => cumulative score
   const [quizAnswers, setQuizAnswers] = useState<QuizAnswerMap>({});
   const [previewQuiz, setPreviewQuiz] = useState<QuizAnswerMap>({});
-  const [parallaxEnabled, setParallaxEnabled] = useState<boolean>(() => loadParallax());
 
   // ---- Admin ----
   const [isAdmin, setIsAdmin] = useState(false);
@@ -562,7 +558,7 @@ function CalendarApp() {
       showToast(
         includeDrafts
           ? `🛠️ Aucune case créée pour le ${formatDayMonthFR(tip.date)} (onglet « Cases » du Studio).`
-          : `🛠️ Pas de case publiée le ${formatDayMonthFR(tip.date)} — cochez « Inclure les brouillons » dans l’aperçu.`
+          : `🛠️ Pas de case publiée le ${formatDayMonthFR(tip.date)} | cochez « Inclure les brouillons » dans l’aperçu.`
       );
       return;
     }
@@ -666,12 +662,6 @@ function CalendarApp() {
     if (visitor) saveBookmarks(visitor.id, next);
   };
 
-  const handleToggleParallax = () => {
-    setParallaxEnabled((prev) => {
-      saveParallax(!prev);
-      return !prev;
-    });
-  };
 
   const selectedIndex = selectedTip
     ? availableTips.findIndex((t) => t.date === selectedTip.date)
@@ -697,14 +687,14 @@ function CalendarApp() {
             <button
               type="button"
               onClick={() => void loadData()}
-              className="cartoon-btn mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#86BC25] text-xs font-bold cursor-pointer"
+              className="cartoon-btn mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1F5A43] text-white text-xs font-bold cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" /> Réessayer
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-3 text-sm font-bold text-white">
-            <Loader2 className="w-5 h-5 animate-spin text-[#86BC25]" />
+            <Loader2 className="w-5 h-5 animate-spin text-[#D9A441]" />
             Chargement du calendrier…
           </div>
         )}
@@ -715,29 +705,29 @@ function CalendarApp() {
   const progressDenominator = availableTips.length;
 
   return (
-    <div className="relative min-h-screen bg-festive text-[#0F172A] flex flex-col">
+    <div className="relative min-h-screen bg-festive text-[#1C2B24] flex flex-col">
       <PageSnow />
       {/* Admin preview banner (only ever rendered for an authenticated admin) */}
       {previewActive && preview && (
-        <div className="relative z-30 bg-[#FEF3C7] border-b-2 border-[#1C2B24]/15 px-4 py-2 text-center text-xs font-bold flex flex-wrap items-center justify-center gap-3">
+        <div className="relative z-30 bg-[#D9A441] text-[#1C2B24] px-4 py-2 text-center text-xs font-bold flex flex-wrap items-center justify-center gap-3">
           <span className="inline-flex items-center gap-1.5">
             <Eye className="w-4 h-4" />
             Aperçu admin au <span className="underline capitalize">{formatLongFR(preview.date)}</span>
             {preview.includeDrafts ? ' • brouillons inclus' : ' • cases publiées uniquement'}
-            {preview.unlockAll ? ' • 🔓 toutes les cases déverrouillées' : ''} — visible
+            {preview.unlockAll ? ' • 🔓 toutes les cases déverrouillées' : ''} | visible
             uniquement par vous, rien n&apos;est comptabilisé.
           </span>
           <button
             type="button"
             onClick={() => setShowBackoffice(true)}
-            className="px-2.5 py-0.5 rounded-lg bg-white border border-[#1C2B24]/15 text-xs font-bold hover:bg-[#86BC25] cursor-pointer"
+            className="px-2.5 py-0.5 rounded-lg bg-white border border-[#1C2B24]/15 text-xs font-bold hover:bg-[#FBF6EC] cursor-pointer"
           >
             Régler l&apos;aperçu
           </button>
           <button
             type="button"
             onClick={() => setPreview(null)}
-            className="px-2.5 py-0.5 rounded-lg bg-[#0F172A] text-white text-xs font-bold cursor-pointer"
+            className="px-2.5 py-0.5 rounded-lg bg-[#0E3B2E] text-white text-xs font-bold cursor-pointer"
           >
             Quitter l&apos;aperçu (date réelle)
           </button>
@@ -816,15 +806,6 @@ function CalendarApp() {
                   <BookOpen className="w-4 h-4" />
                   Cases ouvertes ({openedAvailableCount})
                 </button>
-                <button
-                  type="button"
-                  onClick={handleToggleParallax}
-                  title="Effet de profondeur au survol"
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#1C2B24]/15 text-sm font-medium text-[#1C2B24]/80 hover:bg-white cursor-pointer transition-colors"
-                >
-                  <Box className="w-4 h-4" />
-                  3D {parallaxEnabled ? 'activée' : 'désactivée'}
-                </button>
               </div>
             </div>
 
@@ -878,7 +859,7 @@ function CalendarApp() {
                 <button
                   type="button"
                   onClick={() => setGridFilter('all')}
-                  className="cartoon-btn px-4 py-2 rounded-xl bg-[#86BC25] text-xs font-bold cursor-pointer"
+                  className="cartoon-btn px-4 py-2 rounded-xl bg-[#1F5A43] text-white text-xs font-bold cursor-pointer"
                 >
                   Afficher toutes les cases
                 </button>
@@ -890,7 +871,7 @@ function CalendarApp() {
               activeDay={activeDay}
               openedDays={openedDays}
               bookmarkedDays={bookmarkedDays}
-              parallaxEnabled={parallaxEnabled}
+              parallaxEnabled
               calendarLayout={gridFilter === 'all'}
               rangeStart={cal.start_date}
               rangeEnd={cal.end_date}
@@ -908,7 +889,7 @@ function CalendarApp() {
             <strong className="text-white/80">Deloitte<span className="text-[#86BC25]">.</span> Transformation &amp; Change</strong>
             {visitor && (
               <>
-                <span>—</span>
+                <span className="text-white/30">|</span>
                 <span className="inline-flex items-center gap-1">
                   <UserRound className="w-3.5 h-3.5" />
                   {visitor.firstName} {visitor.lastName}
@@ -999,7 +980,7 @@ function CalendarApp() {
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] animate-pop-in px-4 w-max max-w-full">
-          <div className="cartoon-box rounded-2xl bg-[#0F172A] text-white px-5 py-2.5 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm">
+          <div className="cartoon-box rounded-2xl bg-[#0E3B2E] text-white border-white/10 px-5 py-2.5 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm">
             <span>{toast}</span>
           </div>
         </div>

@@ -160,7 +160,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
       particleCount: 55,
       spread: 65,
       origin: { y: 0.55 },
-      colors: ['#86BC25', '#0EA5E9', '#FBBF24', '#FB7185'],
+      colors: ['#A8201A', '#1F5A43', '#D9A441', '#FBF6EC'],
     });
   }, [isFutureLocked, justRevealed, isOpened, onReveal, tip.day]);
 
@@ -280,29 +280,29 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#0E3B2E]/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-pop-in relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#FAF9F5] border-[3px] border-[#1C2B24]/15 shadow-sm p-5 sm:p-7"
+        className="animate-pop-in relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#FBF6EC] border-[3px] border-[#1C2B24]/15 shadow-sm p-5 sm:p-7"
       >
         {/* Top Modal Header */}
         <div className="flex items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`inline-flex items-center justify-center px-3 py-1 rounded-xl border border-[#1C2B24]/15 font-display text-base font-bold ${stylePreset.bgClass} ${stylePreset.numberColor}`}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-xl border border-[#1C2B24]/15 font-display text-base font-bold bg-[#A8201A] text-white`}
             >
               Jour {tip.day}
             </span>
             {!isFutureLocked && (
               <>
                 <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-[#1C2B24]/15/20 text-xs font-bold ${catMeta.bg} ${catMeta.text}`}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-[#1C2B24]/15 text-xs font-bold ${catMeta.bg} ${catMeta.text}`}
                 >
                   {catMeta.icon} {catMeta.label}
                 </span>
-                <span className="text-xs font-semibold text-[#64748B] bg-white px-2.5 py-1 rounded-lg border border-[#E2E8F0]">
+                <span className="text-xs font-semibold text-[#1C2B24]/70 bg-white px-2.5 py-1 rounded-lg border border-[#1C2B24]/15">
                   {tip.practice}
                 </span>
               </>
@@ -316,14 +316,14 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
                 onClick={() => onToggleBookmark(tip.day)}
                 title={isBookmarked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                 className={`cartoon-btn p-2 rounded-xl cursor-pointer ${
-                  isBookmarked ? 'bg-[#FEF3C7]' : 'bg-white'
+                  isBookmarked ? 'bg-[#FBF1DC]' : 'bg-white'
                 }`}
               >
                 <Star
                   className={`w-4 h-4 ${
                     isBookmarked
-                      ? 'fill-[#F59E0B] text-[#0F172A]'
-                      : 'text-[#0F172A]'
+                      ? 'fill-[#D9A441] text-[#1C2B24]'
+                      : 'text-[#1C2B24]'
                   }`}
                 />
               </button>
@@ -332,9 +332,9 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Fermer"
-              className="cartoon-btn p-2 rounded-xl bg-white hover:bg-[#FFE4E6] cursor-pointer"
+              className="cartoon-btn p-2 rounded-xl bg-white hover:bg-[#F8E3E1] cursor-pointer"
             >
-              <X className="w-4 h-4 text-[#0F172A]" />
+              <X className="w-4 h-4 text-[#1C2B24]" />
             </button>
           </div>
         </div>
@@ -342,21 +342,21 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
         {/* HARD GUARD: Future Day */}
         {isFutureLocked ? (
           <div className="py-10 px-4 text-center space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-[#E2E8F0] border border-[#1C2B24]/15 flex items-center justify-center">
-              <Lock className="w-8 h-8 text-[#475569]" />
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-[#1C2B24]/10 border border-[#1C2B24]/15 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-[#1C2B24]/70" />
             </div>
-            <h2 className="font-display text-2xl font-bold text-[#0F172A]">
+            <h2 className="font-display text-2xl font-bold text-[#1C2B24]">
               {tip.placeholder && tip.day <= activeDay
                 ? 'Cette case arrive très bientôt'
                 : `Case verrouillée jusqu'au ${formatDayMonthFR(tip.date)}`}
             </h2>
-            <p className="text-sm text-[#64748B] max-w-md mx-auto">
+            <p className="text-sm text-[#1C2B24]/70 max-w-md mx-auto">
               Pas de triche ! Il est impossible de gratter les cases futures avant leur date d&apos;ouverture.
             </p>
             <button
               type="button"
               onClick={onClose}
-              className="cartoon-btn px-5 py-2.5 rounded-xl bg-[#86BC25] text-xs font-bold cursor-pointer"
+              className="cartoon-btn px-5 py-2.5 rounded-xl bg-[#1F5A43] text-xs font-bold cursor-pointer"
             >
               Compris, retour au calendrier
             </button>
@@ -365,17 +365,17 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
           /* Interactive Scratch-Off Layer */
           <div className="space-y-4">
             <div className="relative w-full h-[280px] sm:h-[310px] rounded-2xl border border-[#1C2B24]/15 shadow-sm overflow-hidden bg-white select-none">
-              <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-gradient-to-br from-[#FAF9F5] to-[#F0FDF4]">
+              <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-[#FBF6EC]">
                 <div className="text-5xl mb-3">{tip.emoji}</div>
                 <span
                   className={`px-3 py-0.5 rounded-full text-xs font-bold mb-2 ${catMeta.bg} ${catMeta.text}`}
                 >
                   {catMeta.icon} {catMeta.label}
                 </span>
-                <h3 className="font-display text-xl sm:text-2xl font-bold text-[#0F172A] max-w-md">
+                <h3 className="font-display text-xl sm:text-2xl font-bold text-[#1C2B24] max-w-md">
                   {tip.title}
                 </h3>
-                <p className="text-sm text-[#475569] mt-2 max-w-md">
+                <p className="text-sm text-[#1C2B24]/70 mt-2 max-w-md">
                   {tip.summary}
                 </p>
               </div>
@@ -394,15 +394,15 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-[#1C2B24]/15">
               <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
-                <Sparkles className="w-4 h-4 text-[#86BC25] shrink-0" />
+                <Sparkles className="w-4 h-4 text-[#1F5A43] shrink-0" />
                 <div className="flex-1">
                   <div className="flex justify-between text-xs font-bold mb-1">
                     <span>Grattage</span>
                     <span>{Math.min(100, scratchPercent * 2)}%</span>
                   </div>
-                  <div className="w-full h-2.5 bg-[#E2E8F0] rounded-full border border-[#1C2B24]/15 overflow-hidden">
+                  <div className="w-full h-2.5 bg-[#1C2B24]/10 rounded-full border border-[#1C2B24]/15 overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-[#86BC25] to-[#0EA5E9] transition-all duration-150"
+                      className="h-full bg-[#1F5A43] transition-all duration-150"
                       style={{ width: `${Math.min(100, scratchPercent * 2)}%` }}
                     />
                   </div>
@@ -412,7 +412,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
               <button
                 type="button"
                 onClick={triggerRevealCelebration}
-                className="cartoon-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FBBF24] text-[#0F172A] text-xs font-bold cursor-pointer shrink-0"
+                className="cartoon-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#A8201A] text-white text-xs font-bold cursor-pointer shrink-0"
               >
                 <Wand2 className="w-3.5 h-3.5" />
                 Tout révéler
@@ -424,32 +424,29 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
           <div className="space-y-4 animate-pop-in">
             {/* Animated Title Hero */}
             <div
-              className="relative overflow-hidden rounded-2xl border border-[#1C2B24]/15 shadow-sm p-5 sm:p-6 animate-hero-shift"
-              style={{
-                backgroundImage: `linear-gradient(120deg, ${stylePreset.foilColors[0]}, ${stylePreset.foilColors[2]}, ${stylePreset.foilColors[1]}, ${stylePreset.foilColors[0]})`,
-              }}
+              className="relative overflow-hidden rounded-2xl bg-[#0E3B2E] p-5 sm:p-6"
             >
               <span
                 aria-hidden
-                className="pointer-events-none absolute -right-4 -bottom-6 text-[110px] sm:text-[130px] opacity-25 rotate-12 select-none"
+                className="pointer-events-none absolute -right-4 -bottom-6 text-[110px] sm:text-[130px] opacity-15 rotate-12 select-none"
               >
                 {tip.emoji}
               </span>
               <div className="relative flex items-start gap-4">
-                <div className="w-16 h-16 shrink-0 rounded-2xl bg-white border border-[#1C2B24]/15 shadow-sm flex items-center justify-center text-4xl animate-float">
+                <div className="w-16 h-16 shrink-0 rounded-2xl bg-[#FBF6EC] flex items-center justify-center text-4xl">
                   {tip.emoji}
                 </div>
                 <div className="min-w-0">
                   {tip.badgeTag && (
-                    <span className="inline-block mb-1.5 px-2 py-0.5 rounded-md bg-[#0F172A] text-white text-[10px] font-bold tracking-wider">
+                    <span className="inline-block mb-1.5 px-2 py-0.5 rounded-md bg-[#D9A441] text-[#1C2B24] text-[11px] font-bold tracking-wider">
                       {tip.badgeTag}
                     </span>
                   )}
-                  <h2 className="font-display text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight [text-shadow:0_1px_0_rgba(255,255,255,0.6)]">
+                  <h2 className="font-display text-2xl sm:text-[28px] font-semibold text-white leading-tight">
                     {tip.title}
                   </h2>
                   {tip.summary && (
-                    <p className="text-sm font-semibold text-[#0F172A]/80 mt-1.5 bg-white/70 inline-block rounded-lg px-2 py-1">
+                    <p className="text-[15px] text-white/80 mt-2">
                       {tip.summary}
                     </p>
                   )}
@@ -461,7 +458,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
             {tip.media && (
               <TipMedia
                 media={tip.media}
-                accentHex={stylePreset.accentHex}
+                accentHex="#1F5A43"
                 fallbackEmoji={tip.emoji}
                 onTrack={() => onTrack?.('resource')}
               />
@@ -472,7 +469,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
               <TipQuiz
                 quiz={tip.quiz}
                 resetKey={tip.date}
-                accentHex={stylePreset.accentHex}
+                accentHex="#1F5A43"
                 onTrack={() => onTrack?.('resource')}
                 onAnswer={(qi, oi, ok) => {
                   setQuizAnswered(true);
@@ -484,17 +481,17 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
 
             {/* Practical content with paragraphs & bullets */}
             {tip.content.trim() && !contentUnlocked && (
-              <div className="rounded-2xl border border-dashed border-[#94A3B8] bg-white/60 p-4 text-center text-sm font-semibold text-[#64748B]">
+              <div className="rounded-2xl border border-dashed border-[#1C2B24]/15 bg-white/60 p-4 text-center text-sm font-semibold text-[#1C2B24]/70">
                 🔐 Répondez au quiz pour débloquer le décryptage complet
               </div>
             )}
             {tip.content.trim() && contentUnlocked && (
-            <div className="bg-[#F0FDF4] p-4 sm:p-5 rounded-2xl border border-[#1C2B24]/15 space-y-2.5 animate-slide-up">
-              <h4 className="font-display font-bold text-xs uppercase tracking-wider text-[#3F6212] flex items-center gap-1.5">
+            <div className="bg-[#EAF2EC] p-4 sm:p-5 rounded-2xl border border-[#1C2B24]/15 space-y-2.5 animate-slide-up">
+              <h4 className="font-display font-bold text-xs uppercase tracking-wider text-[#1F5A43] flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" />
                 {CONTENT_HEADING[tip.category] ?? 'En pratique'}
               </h4>
-              <div className="space-y-2.5 text-sm sm:text-[15px] leading-relaxed text-[#0F172A]">
+              <div className="space-y-2.5 text-sm sm:text-[15px] leading-relaxed text-[#1C2B24]">
                 {tip.content.split('\n\n').map((block, bIdx) => {
                   const lines = block.split('\n').filter(Boolean);
                   const hasBullets = lines.some(
@@ -514,13 +511,13 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
                                 key={lIdx}
                                 className="flex items-start gap-2 pl-1"
                               >
-                                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#65A30D] shrink-0" />
+                                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#1F5A43] shrink-0" />
                                 <span>{trimmed.replace(/^[•-]\s*/, '')}</span>
                               </div>
                             );
                           }
                           return (
-                            <p key={lIdx} className="font-semibold text-[#1E293B]">
+                            <p key={lIdx} className="font-semibold text-[#1C2B24]">
                               {trimmed}
                             </p>
                           );
@@ -541,22 +538,22 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
 
             {/* "Le saviez-vous ?" bubble */}
             {tip.funFact && contentUnlocked && (
-              <div className="relative flex items-start gap-3 rounded-2xl border border-[#1C2B24]/15 bg-[#FEF9C3] p-4 shadow-sm animate-slide-up">
+              <div className="relative flex items-start gap-3 rounded-2xl border border-[#1C2B24]/15 bg-[#FBF1DC] p-4 shadow-sm animate-slide-up">
                 <span className="text-3xl animate-float shrink-0">💡</span>
                 <div>
-                  <div className="font-display font-bold text-xs uppercase tracking-wider text-[#A16207]">
+                  <div className="font-display font-bold text-xs uppercase tracking-wider text-[#9A6B12]">
                     Le saviez-vous ?
                   </div>
-                  <p className="text-sm text-[#1E293B] mt-0.5 leading-relaxed">{tip.funFact}</p>
+                  <p className="text-sm text-[#1C2B24] mt-0.5 leading-relaxed">{tip.funFact}</p>
                 </div>
               </div>
             )}
 
             {/* Smart Microsoft Copilot Redirection & Copy Box */}
             {hasPrompt && contentUnlocked && (
-            <div className="bg-[#0F172A] text-white p-4 sm:p-5 rounded-2xl border border-[#1C2B24]/15 shadow-sm space-y-3">
+            <div className="bg-[#0E3B2E] text-white p-4 sm:p-5 rounded-2xl border border-[#1C2B24]/15 shadow-sm space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#A3E635] flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#D9A441] flex items-center gap-1.5">
                   <Bot className="w-4 h-4" />
                   {tip.actionLabel}
                 </span>
@@ -571,13 +568,13 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
                     aria-label="Destination Copilot"
                     className="px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-[11px] font-semibold text-white focus:outline-none cursor-pointer"
                   >
-                    <option value="m365" className="text-[#0F172A]">
+                    <option value="m365" className="text-[#1C2B24]">
                       Copilot M365 (Pro)
                     </option>
-                    <option value="web" className="text-[#0F172A]">
+                    <option value="web" className="text-[#1C2B24]">
                       Copilot Web
                     </option>
-                    <option value="studio" className="text-[#0F172A]">
+                    <option value="studio" className="text-[#1C2B24]">
                       Copilot Studio
                     </option>
                   </select>
@@ -587,7 +584,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
                     onClick={handleCopyPrompt}
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/20 text-[11px] font-bold transition-colors cursor-pointer ${
                       copied
-                        ? 'bg-[#86BC25] text-[#0F172A]'
+                        ? 'bg-[#1F5A43] text-white'
                         : 'bg-white/10 hover:bg-white/20 text-white'
                     }`}
                   >
@@ -610,13 +607,13 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
 
               {/* Smart Redirection CTA */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                <span className="text-[11px] text-[#94A3B8]">
+                <span className="text-xs text-white/65">
                   Copie le prompt automatiquement et ouvre votre espace Copilot.
                 </span>
                 <button
                   type="button"
                   onClick={handleLaunchCopilot}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#0EA5E9] to-[#6366F1] hover:brightness-110 text-white text-xs font-bold border border-white/25 shadow-sm transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#A8201A] hover:bg-[#8E1B16] text-white text-xs font-bold border border-white/25 shadow-sm transition-all cursor-pointer"
                 >
                   <Bot className="w-3.5 h-3.5" />
                   Lancer dans Copilot
@@ -629,8 +626,8 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
             {/* External Articles, Guides & Links */}
             {tip.resources && tip.resources.length > 0 && (
               <div className="bg-white p-4 rounded-2xl border border-[#1C2B24]/15 space-y-2.5">
-                <h4 className="font-display font-bold text-xs uppercase tracking-wider text-[#475569] flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-[#0EA5E9]" />
+                <h4 className="font-display font-bold text-xs uppercase tracking-wider text-[#1C2B24]/70 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-[#1F5A43]" />
                   Pour aller plus loin
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -643,7 +640,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => onTrack?.('resource')}
-                        className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-[#CBD5E1] hover:border-[#1C2B24]/15 hover:bg-[#F8FAFC] transition-all"
+                        className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-[#1C2B24]/15 hover:border-[#1C2B24]/15 hover:bg-[#FBF6EC] transition-all"
                       >
                         <div className="min-w-0 flex items-center gap-2">
                           <span
@@ -651,11 +648,11 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
                           >
                             {meta.icon} {meta.label}
                           </span>
-                          <span className="text-xs font-semibold text-[#0F172A] truncate group-hover:text-[#0EA5E9]">
+                          <span className="text-xs font-semibold text-[#1C2B24] truncate group-hover:text-[#1F5A43]">
                             {res.label}
                           </span>
                         </div>
-                        <ExternalLink className="w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#0EA5E9] shrink-0" />
+                        <ExternalLink className="w-3.5 h-3.5 text-[#1C2B24]/50 group-hover:text-[#1F5A43] shrink-0" />
                       </a>
                     );
                   })}
@@ -678,7 +675,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="cartoon-btn px-5 py-2 rounded-xl bg-[#86BC25] text-[#0F172A] text-xs font-bold cursor-pointer"
+                className="cartoon-btn px-5 py-2 rounded-xl bg-[#1F5A43] text-white text-xs font-bold cursor-pointer"
               >
                 Fermer
               </button>

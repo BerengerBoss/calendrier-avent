@@ -65,13 +65,13 @@ export const BarChart: React.FC<BarChartProps> = ({
               >
                 <div
                   className={`w-full rounded-t-[4px] transition-colors ${
-                    hover === i ? 'bg-[#3F6212]' : 'bg-[#65A30D]'
+                    hover === i ? 'bg-[#0E3B2E]' : 'bg-[#1F5A43]'
                   }`}
                   style={{ height: h }}
                 />
                 {hover === i && (
                   <div
-                    className={`absolute bottom-full mb-1.5 z-10 whitespace-nowrap rounded-lg bg-[#0F172A] text-white text-[11px] font-semibold px-2 py-1 shadow-md pointer-events-none ${
+                    className={`absolute bottom-full mb-1.5 z-10 whitespace-nowrap rounded-lg bg-[#0E3B2E] text-white text-[11px] font-semibold px-2 py-1 shadow-md pointer-events-none ${
                       i < data.length / 2 ? 'left-0' : 'right-0'
                     }`}
                   >

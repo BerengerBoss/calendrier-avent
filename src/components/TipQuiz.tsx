@@ -7,7 +7,8 @@ interface TipQuizProps {
   quiz: TipQuizData;
   /** Resets the quiz when it changes (ex: card day). */
   resetKey: string | number;
-  accentHex: string;
+  /** Kept for API compatibility (the quiz now uses the shared palette). */
+  accentHex?: string;
   onTrack?: () => void;
   /** Called on every answer (unlocks the rest of the card, feeds the cumulative score). */
   onAnswer?: (questionIndex: number, optionIndex: number, correct: boolean) => void;
@@ -58,7 +59,6 @@ const MiniSlide: React.FC<{ slide: QuizSlide }> = ({ slide }) => {
 export const TipQuiz: React.FC<TipQuizProps> = ({
   quiz,
   resetKey,
-  accentHex,
   onTrack,
   onAnswer,
   cumulative,
@@ -95,7 +95,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
         spread: 55,
         startVelocity: 32,
         origin: { y: 0.65 },
-        colors: ['#86BC25', '#A3E635', '#FBBF24', '#0EA5E9'],
+        colors: ['#A8201A', '#1F5A43', '#D9A441', '#FBF6EC'],
       });
     } else {
       setShakeKey((k) => k + 1);
@@ -109,7 +109,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
     } else {
       setDone(true);
       if (score === total) {
-        confetti({ particleCount: 90, spread: 80, origin: { y: 0.55 } });
+        confetti({ particleCount: 90, spread: 80, origin: { y: 0.55 }, colors: ['#A8201A', '#1F5A43', '#D9A441', '#FBF6EC'] });
       }
     }
   };
@@ -137,7 +137,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
         <div className="text-sm text-[#1C2B24]/70 mt-0.5">
           Ce quiz : {score} / {total}
         </div>
-        <p className="text-sm text-[#475569] mt-2">
+        <p className="text-sm text-[#1C2B24]/70 mt-2">
           {perfect
             ? 'Sans faute ! Vous êtes officiellement à jour sur l’IA. ✨'
             : score > 0
@@ -145,7 +145,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
             : 'Pas grave : vous venez d’apprendre quelque chose de nouveau.'}
         </p>
         {quiz.outro && (
-          <div className="mt-4 text-left text-sm whitespace-pre-line rounded-xl bg-[#FEF9C3] border border-[#1C2B24]/15 p-3.5">
+          <div className="mt-4 text-left text-sm whitespace-pre-line rounded-xl bg-[#FBF1DC] border border-[#1C2B24]/15 p-3.5">
             {quiz.outro}
           </div>
         )}
@@ -167,11 +167,10 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
     <div className="rounded-2xl border border-[#1C2B24]/15 bg-white shadow-sm overflow-hidden">
       {/* Header */}
       <div
-        className="flex items-center justify-between gap-3 px-4 py-2.5 border-b-2 border-[#1C2B24]/15 animate-hero-shift"
-        style={{ backgroundImage: `linear-gradient(110deg, #FEF9C3, #FFFFFF, ${accentHex}33, #FEF9C3)` }}
+        className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[#1C2B24]/10 bg-[#FBF1DC]"
       >
         <span className="font-display font-bold text-sm flex items-center gap-1.5">
-          <Trophy className="w-4 h-4 text-[#CA8A04]" />
+          <Trophy className="w-4 h-4 text-[#9A6B12]" />
           {quiz.title || (isTrueFalse ? 'Vrai ou faux ?' : 'À vous de jouer !')}
         </span>
         {cumulative && cumulative.total > 0 && (
@@ -185,7 +184,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
               <span
                 key={i}
                 className={`h-2.5 rounded-full border border-[#1C2B24]/15 transition-all ${
-                  i < index ? 'w-2.5 bg-[#86BC25]' : i === index ? 'w-6 bg-[#0F172A]' : 'w-2.5 bg-white'
+                  i < index ? 'w-2.5 bg-[#1F5A43]' : i === index ? 'w-6 bg-[#0E3B2E]' : 'w-2.5 bg-white'
                 }`}
               />
             ))}
@@ -225,12 +224,12 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
                   isTrueFalse ? 'py-4 px-3 text-center' : 'p-3'
                 } ${
                   reveal
-                    ? 'bg-[#DCFCE7] shadow-sm -translate-y-0.5'
+                    ? 'bg-[#EAF2EC] shadow-sm -translate-y-0.5'
                     : wrongPick
-                    ? 'bg-[#FFE4E6] shadow-sm'
+                    ? 'bg-[#F8E3E1] shadow-sm'
                     : answered
-                    ? 'bg-[#F8FAFC] opacity-60'
-                    : 'bg-white shadow-sm hover:-translate-y-0.5 hover:bg-[#F7FEE7]'
+                    ? 'bg-[#FBF6EC] opacity-60'
+                    : 'bg-white shadow-sm hover:-translate-y-0.5 hover:bg-[#EAF2EC]'
                 }`}
               >
                 {opt.slide && <MiniSlide slide={opt.slide} />}
@@ -250,7 +249,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
                   {tfIcon ? (
                     <span className="text-2xl">{tfIcon}</span>
                   ) : (
-                    <span className="shrink-0 w-6 h-6 rounded-md bg-[#0F172A] text-white text-[11px] flex items-center justify-center">
+                    <span className="shrink-0 w-6 h-6 rounded-md bg-[#0E3B2E] text-white text-[11px] flex items-center justify-center">
                       {LETTERS[i] ?? i + 1}
                     </span>
                   )}
@@ -267,13 +266,13 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
         {answered && (
           <div
             className={`rounded-xl border border-[#1C2B24]/15 p-3.5 animate-pop-in ${
-              pickedCorrect ? 'bg-[#F0FDF4]' : 'bg-[#FFF7ED]'
+              pickedCorrect ? 'bg-[#EAF2EC]' : 'bg-[#FBF1DC]'
             }`}
           >
             <div className="font-display font-bold text-base mb-1">
               {pickedCorrect ? '🎯 Bien vu !' : '😮 Raté… mais bonne nouvelle, maintenant vous savez !'}
             </div>
-            <p className="text-sm leading-relaxed whitespace-pre-line text-[#1E293B]">
+            <p className="text-sm leading-relaxed whitespace-pre-line text-[#1C2B24]">
               {question.explanation}
             </p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -284,12 +283,12 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => onTrack?.()}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0284C7] hover:underline"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1F5A43] hover:underline"
                   >
                     Source : {question.sourceLabel} <ExternalLink className="w-3 h-3" />
                   </a>
                 ) : (
-                  <span className="text-[11px] font-semibold text-[#64748B]">
+                  <span className="text-[11px] font-semibold text-[#1C2B24]/70">
                     Source : {question.sourceLabel}
                   </span>
                 )
@@ -299,7 +298,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
               <button
                 type="button"
                 onClick={handleNext}
-                className="cartoon-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#86BC25] text-[#0F172A] text-xs font-bold cursor-pointer"
+                className="cartoon-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1F5A43] text-white text-xs font-bold cursor-pointer"
               >
                 {index + 1 < total ? 'Question suivante' : 'Voir mon score'}
                 <ArrowRight className="w-3.5 h-3.5" />

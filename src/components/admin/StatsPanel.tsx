@@ -1,35 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  RefreshCw,
-  Download,
-  Search,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  Users,
-  MousePointerClick,
-  Trophy,
-  Activity,
-  Loader2,
-} from 'lucide-react';
-import { CardRecord, DashboardData, DashboardVisitor } from '../../types/advent';
+import { RefreshCw, Download, Search, Trash2, Loader2, Check } from 'lucide-react';
+import { CalendarSettings, CardRecord, DashboardData, DashboardVisitor } from '../../types/advent';
 import { deleteVisitor, fetchDashboard } from '../../lib/api';
 import {
   addDays,
   diffDays,
   formatDateTimeFR,
   formatShortFR,
+  formatWeekdayShortFR,
+  listWorkingDays,
   timestampToParisISO,
 } from '../../utils/calendar';
 import { BarChart, BarDatum } from './BarChart';
 
 interface StatsPanelProps {
+  settings: CalendarSettings;
   cards: CardRecord[];
   realToday: string;
   onNotify: (msg: string) => void;
 }
 
-type SortKey = 'name' | 'last_seen' | 'opens' | 'visits' | 'created';
+type SortKey = 'last_seen' | 'opens' | 'quiz' | 'name';
 type DailyMetric = 'active_visitors' | 'opens' | 'visits' | 'new_visitors';
 
 const DAILY_METRICS: { id: DailyMetric; label: string; unit: string }[] = [
@@ -46,20 +37,60 @@ function csvEscape(v: string | number): string {
   return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNotify }) => {
+const Card: React.FC<{ title?: string; sub?: string; right?: React.ReactNode; children: React.ReactNode }> = ({
+  title,
+  sub,
+  right,
+  children,
+}) => (
+  <section className="rounded-2xl bg-white border border-[#1C2B24]/10 shadow-sm p-5">
+    {(title || right) && (
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          {title && <h3 className="font-display text-lg font-semibold text-[#1C2B24]">{title}</h3>}
+          {sub && <p className="text-sm text-[#1C2B24]/60 mt-0.5">{sub}</p>}
+        </div>
+        {right}
+      </div>
+    )}
+    {children}
+  </section>
+);
+
+const Kpi: React.FC<{ label: string; value: string | number; sub?: string; tone?: 'green' | 'red' | 'gold' | 'ink' }> = ({
+  label,
+  value,
+  sub,
+  tone = 'ink',
+}) => {
+  const color = { green: '#1F5A43', red: '#A8201A', gold: '#9A6B12', ink: '#1C2B24' }[tone];
+  return (
+    <div className="rounded-2xl bg-white border border-[#1C2B24]/10 shadow-sm p-4">
+      <div className="text-xs font-semibold uppercase tracking-wider text-[#1C2B24]/55">{label}</div>
+      <div className="font-display text-[34px] leading-none font-semibold mt-2" style={{ color }}>
+        {value}
+      </div>
+      {sub && <div className="text-sm text-[#1C2B24]/60 mt-1.5">{sub}</div>}
+    </div>
+  );
+};
+
+/** Colour of a quiz result: all right = green, some = gold, none = red. */
+const quizTone = (correct: number, total: number) =>
+  total === 0 ? '' : correct === total ? 'bg-[#1F5A43] text-white' : correct === 0 ? 'bg-[#A8201A] text-white' : 'bg-[#D9A441] text-[#1C2B24]';
+
+export const StatsPanel: React.FC<StatsPanelProps> = ({ settings, cards, realToday, onNotify }) => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('last_seen');
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [metric, setMetric] = useState<DailyMetric>('active_visitors');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await fetchDashboard();
-      setData(d);
+      setData(await fetchDashboard());
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
@@ -75,21 +106,23 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
   }, [load]);
 
   const today = data?.today || realToday;
+  const visitors = useMemo(() => data?.visitors ?? [], [data]);
+  const cardByDate = useMemo(() => new Map(cards.map((c) => [c.publish_date, c])), [cards]);
 
-  // Cards that are actually visible to everyone today
-  const liveCards = useMemo(
-    () => cards.filter((c) => c.status === 'published' && c.publish_date <= today),
-    [cards, today]
-  );
-  const liveDates = useMemo(() => new Set(liveCards.map((c) => c.publish_date)), [liveCards]);
-  const titleByDate = useMemo(
-    () => new Map(cards.map((c) => [c.publish_date, c.content.title])),
-    [cards]
-  );
-
-  const visitors = data?.visitors ?? [];
-  const nLive = liveCards.length;
-  const openedLive = (v: DashboardVisitor) => v.opened_dates.filter((d) => liveDates.has(d)).length;
+  /**
+   * Columns of the "who opened what" grid: every working day that has a card,
+   * plus any date that has opens (ex: opened through a share link, card deleted since).
+   * All opens are counted, whatever the card's status or date.
+   */
+  const columns = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of listWorkingDays(settings.start_date, settings.end_date)) if (cardByDate.has(d)) set.add(d);
+    for (const v of visitors) {
+      v.opened_dates.forEach((d) => set.add(d));
+      v.quiz_by_card.forEach((q) => set.add(q.card_date));
+    }
+    return Array.from(set).sort();
+  }, [settings.start_date, settings.end_date, cardByDate, visitors]);
 
   const kpis = useMemo(() => {
     const participants = visitors.length;
@@ -98,27 +131,68 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
       const d = timestampToParisISO(v.last_seen_at);
       return d && diffDays(d, today) < 7;
     }).length;
-    const totalOpens = visitors.reduce((s, v) => s + openedLive(v), 0);
-    const completers = nLive > 0 ? visitors.filter((v) => openedLive(v) >= nLive).length : 0;
-    const neverOpened = visitors.filter((v) => v.opened_dates.length === 0).length;
-    const copilot = visitors.reduce((s, v) => s + v.copilot_count, 0);
-    const resources = visitors.reduce((s, v) => s + v.resource_count, 0);
+    const totalOpens = visitors.reduce((s, v) => s + v.opened_dates.length, 0);
+    const quizCorrect = visitors.reduce((s, v) => s + v.quiz_correct, 0);
+    const quizTotal = visitors.reduce((s, v) => s + v.quiz_total, 0);
+    const quizPlayers = visitors.filter((v) => v.quiz_total > 0).length;
     return {
       participants,
       activeToday,
       active7,
       totalOpens,
-      avgOpens: participants > 0 ? (totalOpens / participants).toFixed(1) : '0',
-      completion: pct(totalOpens, participants * nLive),
-      completers,
-      neverOpened,
-      copilot,
-      resources,
+      avgOpens: participants > 0 ? (totalOpens / participants).toFixed(1).replace('.', ',') : '0',
+      neverOpened: visitors.filter((v) => v.opened_dates.length === 0).length,
+      quizRate: pct(quizCorrect, quizTotal),
+      quizTotal,
+      quizPlayers,
+      copilot: visitors.reduce((s, v) => s + v.copilot_count, 0),
+      resources: visitors.reduce((s, v) => s + v.resource_count, 0),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visitors, today, nLive, liveDates]);
+  }, [visitors, today]);
 
-  // ---- Daily series (from first activity to today, max 45 days) ----
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = visitors.filter((v) => !q || `${v.first_name} ${v.last_name}`.toLowerCase().includes(q));
+    return [...list].sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, 'fr');
+        case 'opens':
+          return b.opened_dates.length - a.opened_dates.length;
+        case 'quiz':
+          return b.quiz_correct - a.quiz_correct || pct(b.quiz_correct, b.quiz_total) - pct(a.quiz_correct, a.quiz_total);
+        default:
+          return a.last_seen_at < b.last_seen_at ? 1 : -1;
+      }
+    });
+  }, [visitors, search, sortKey]);
+
+  const leaderboard = useMemo(
+    () =>
+      visitors
+        .filter((v) => v.quiz_total > 0)
+        .sort(
+          (a, b) =>
+            b.quiz_correct - a.quiz_correct ||
+            pct(b.quiz_correct, b.quiz_total) - pct(a.quiz_correct, a.quiz_total) ||
+            a.last_name.localeCompare(b.last_name, 'fr')
+        )
+        .slice(0, 10),
+    [visitors]
+  );
+
+  const perCard = useMemo(() => {
+    const opens = new Map((data?.cards ?? []).map((c) => [c.card_date, c]));
+    const quiz = new Map((data?.quiz_cards ?? []).map((q) => [q.card_date, q]));
+    return columns.map((d) => ({
+      date: d,
+      title: cardByDate.get(d)?.content.title ?? '(case supprimée)',
+      opens: opens.get(d)?.opens ?? 0,
+      copilot: opens.get(d)?.copilot ?? 0,
+      quiz: quiz.get(d),
+    }));
+  }, [data, columns, cardByDate]);
+
   const dailySeries = useMemo<BarDatum[]>(() => {
     if (!data) return [];
     const byDay = new Map(data.daily.map((d) => [d.day, d]));
@@ -127,22 +201,12 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
     if (allDays.length === 0) return [];
     let start = allDays[0];
     if (diffDays(start, today) > 44) start = addDays(today, -44);
-    const out: BarDatum[] = [];
     const meta = DAILY_METRICS.find((m) => m.id === metric)!;
+    const out: BarDatum[] = [];
     for (let d = start; d <= today; d = addDays(d, 1)) {
       const row = byDay.get(d);
-      const value =
-        metric === 'new_visitors'
-          ? newByDay.get(d) ?? 0
-          : row
-          ? row[metric]
-          : 0;
-      out.push({
-        key: d,
-        label: formatShortFR(d),
-        value,
-        tooltip: `${formatShortFR(d)} : ${value} ${meta.unit}`,
-      });
+      const value = metric === 'new_visitors' ? newByDay.get(d) ?? 0 : row ? row[metric] : 0;
+      out.push({ key: d, label: formatShortFR(d), value, tooltip: `${formatShortFR(d)} : ${value} ${meta.unit}` });
     }
     return out;
   }, [data, metric, today]);
@@ -157,48 +221,6 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
     }));
   }, [data]);
 
-  // ---- Per card ----
-  const cardRows = useMemo(() => {
-    const stats = new Map((data?.cards ?? []).map((c) => [c.card_date, c]));
-    return liveCards
-      .map((c) => {
-        const s = stats.get(c.publish_date);
-        return {
-          date: c.publish_date,
-          title: c.content.title,
-          opens: s?.opens ?? 0,
-          copilot: s?.copilot ?? 0,
-          resources: s?.resources ?? 0,
-        };
-      })
-      .sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [data, liveCards]);
-
-  // ---- Participants table ----
-  const rows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const list = visitors.filter(
-      (v) => !q || `${v.first_name} ${v.last_name}`.toLowerCase().includes(q)
-    );
-    const sorted = [...list];
-    sorted.sort((a, b) => {
-      switch (sortKey) {
-        case 'name':
-          return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, 'fr');
-        case 'opens':
-          return openedLive(b) - openedLive(a);
-        case 'visits':
-          return b.visit_count - a.visit_count;
-        case 'created':
-          return a.created_at < b.created_at ? 1 : -1;
-        default:
-          return a.last_seen_at < b.last_seen_at ? 1 : -1;
-      }
-    });
-    return sorted;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visitors, search, sortKey, liveDates]);
-
   const handleExportCsv = () => {
     const header = [
       'Prénom',
@@ -206,31 +228,38 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
       'Inscription',
       'Dernière visite',
       'Visites',
-      `Cases ouvertes (sur ${nLive})`,
-      'Progression %',
+      'Cases ouvertes',
+      'Quiz bonnes réponses',
+      'Quiz réponses',
+      'Quiz %',
       'Clics Copilot/copie',
       'Clics ressources',
-      'Cases ouvertes (dates)',
+      ...columns.map((d) => `Case ${formatShortFR(d)}`),
     ];
-    const lines = rows.map((v) =>
-      [
+    const lines = rows.map((v) => {
+      const qByCard = new Map(v.quiz_by_card.map((q) => [q.card_date, q]));
+      return [
         v.first_name,
         v.last_name,
         formatDateTimeFR(v.created_at),
         formatDateTimeFR(v.last_seen_at),
         v.visit_count,
-        openedLive(v),
-        pct(openedLive(v), nLive),
+        v.opened_dates.length,
+        v.quiz_correct,
+        v.quiz_total,
+        pct(v.quiz_correct, v.quiz_total),
         v.copilot_count,
         v.resource_count,
-        v.opened_dates.join(' '),
+        ...columns.map((d) => {
+          const q = qByCard.get(d);
+          const opened = v.opened_dates.includes(d) ? 'ouverte' : '';
+          return q ? `${opened} quiz ${q.correct}/${q.total}`.trim() : opened;
+        }),
       ]
         .map(csvEscape)
-        .join(';')
-    );
-    const blob = new Blob(['﻿' + [header.join(';'), ...lines].join('\r\n')], {
-      type: 'text/csv;charset=utf-8',
+        .join(';');
     });
+    const blob = new Blob(['﻿' + [header.join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -241,12 +270,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
   };
 
   const handleDelete = async (v: DashboardVisitor) => {
-    if (
-      !window.confirm(
-        `Supprimer ${v.first_name} ${v.last_name} et tout son historique ? Cette action est irréversible.`
-      )
-    )
-      return;
+    if (!window.confirm(`Supprimer ${v.first_name} ${v.last_name} et tout son historique ? Action irréversible.`)) return;
     try {
       await deleteVisitor(v.id);
       onNotify('Participant supprimé.');
@@ -258,7 +282,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
 
   if (!data && loading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-20 text-sm font-bold text-[#475569]">
+      <div className="flex items-center justify-center gap-2 py-20 text-sm text-[#1C2B24]/70">
         <Loader2 className="w-5 h-5 animate-spin" /> Chargement des statistiques…
       </div>
     );
@@ -266,12 +290,12 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
 
   if (!data) {
     return (
-      <div className="cartoon-box rounded-2xl bg-white p-6 max-w-lg mx-auto text-center">
-        <p className="font-bold text-[#BE123C]">{error ?? 'Statistiques indisponibles.'}</p>
+      <div className="rounded-2xl bg-white border border-[#1C2B24]/10 p-6 max-w-lg mx-auto text-center">
+        <p className="font-semibold text-[#A8201A]">{error ?? 'Statistiques indisponibles.'}</p>
         <button
           type="button"
           onClick={() => void load()}
-          className="cartoon-btn mt-3 px-4 py-2 rounded-xl bg-[#86BC25] text-xs font-bold cursor-pointer"
+          className="mt-3 px-4 py-2 rounded-lg bg-[#1F5A43] text-white text-sm font-semibold cursor-pointer"
         >
           Réessayer
         </button>
@@ -279,287 +303,323 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ cards, realToday, onNoti
     );
   }
 
-  const Kpi = ({
-    label,
-    value,
-    sub,
-    icon,
-  }: {
-    label: string;
-    value: string | number;
-    sub?: string;
-    icon: React.ReactNode;
-  }) => (
-    <div className="cartoon-box-sm rounded-2xl bg-white p-4">
-      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#64748B] uppercase tracking-wide">
-        {icon}
-        {label}
-      </div>
-      <div className="font-display text-3xl font-bold text-[#0F172A] mt-1">{value}</div>
-      {sub && <div className="text-[11px] text-[#64748B] mt-0.5">{sub}</div>}
-    </div>
-  );
+  const selectCls =
+    'px-3 py-2 rounded-lg border border-[#1C2B24]/15 text-sm bg-white focus:outline-none focus:border-[#1F5A43]';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-[#1C2B24]">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-[#64748B]">
-          Données en direct • {nLive} case{nLive > 1 ? 's' : ''} visible{nLive > 1 ? 's' : ''} par le public à ce jour.
-          {error && <span className="text-[#BE123C] font-bold ml-2">({error})</span>}
+        <p className="text-sm text-[#1C2B24]/60">
+          Données en direct, actualisées chaque minute. Toutes les ouvertures sont comptées (y compris via un lien de
+          partage).
+          {error && <span className="text-[#A8201A] font-semibold ml-2">({error})</span>}
         </p>
         <button
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="cartoon-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-xs font-bold cursor-pointer disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#1C2B24]/15 bg-white text-sm font-medium cursor-pointer hover:bg-[#FBF6EC] disabled:opacity-60"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Actualiser
         </button>
       </div>
 
-      {/* KPI tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi
-          icon={<Users className="w-3.5 h-3.5" />}
           label="Participants"
           value={kpis.participants}
-          sub={`${kpis.neverOpened} n'ont encore rien ouvert`}
+          sub={`${kpis.activeToday} aujourd'hui | ${kpis.active7} sur 7 jours`}
         />
         <Kpi
-          icon={<Activity className="w-3.5 h-3.5" />}
-          label="Actifs"
-          value={kpis.activeToday}
-          sub={`aujourd'hui • ${kpis.active7} sur 7 jours`}
-        />
-        <Kpi
-          icon={<MousePointerClick className="w-3.5 h-3.5" />}
           label="Cases ouvertes"
           value={kpis.totalOpens}
-          sub={`${kpis.avgOpens} par participant • ${kpis.completion}% de complétion`}
+          tone="green"
+          sub={`${kpis.avgOpens} par participant | ${kpis.neverOpened} sans ouverture`}
         />
         <Kpi
-          icon={<Trophy className="w-3.5 h-3.5" />}
-          label="À jour"
-          value={kpis.completers}
-          sub={`ont tout ouvert • ${kpis.copilot} clics Copilot, ${kpis.resources} ressources`}
+          label="Réussite aux quiz"
+          value={kpis.quizTotal > 0 ? `${kpis.quizRate} %` : '–'}
+          tone="gold"
+          sub={`${kpis.quizTotal} réponse${kpis.quizTotal > 1 ? 's' : ''} | ${kpis.quizPlayers} joueur${kpis.quizPlayers > 1 ? 's' : ''}`}
+        />
+        <Kpi
+          label="Passage à l'action"
+          value={kpis.copilot}
+          tone="red"
+          sub={`clics Copilot/copie | ${kpis.resources} ressources`}
         />
       </div>
 
-      {/* Daily activity */}
-      <div className="cartoon-box rounded-2xl bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 className="font-display text-base font-bold">Activité par jour</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {DAILY_METRICS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setMetric(m.id)}
-                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer ${
-                  metric === m.id
-                    ? 'border-[#1C2B24]/15 bg-[#0F172A] text-[#A3E635]'
-                    : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] hover:border-[#1C2B24]/15'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+      {/* Who opened what */}
+      <Card
+        title="Qui a ouvert quoi"
+        sub={`${rows.length} participant${rows.length > 1 ? 's' : ''} | ${columns.length} case${columns.length > 1 ? 's' : ''}`}
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="w-4 h-4 text-[#1C2B24]/45 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher un nom…"
+                className={`${selectCls} pl-9 w-52`}
+              />
+            </div>
+            <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} className={selectCls} aria-label="Trier par">
+              <option value="last_seen">Tri : dernière visite</option>
+              <option value="opens">Tri : cases ouvertes</option>
+              <option value="quiz">Tri : score quiz</option>
+              <option value="name">Tri : nom</option>
+            </select>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1F5A43] hover:bg-[#174634] text-white text-sm font-semibold cursor-pointer"
+            >
+              <Download className="w-4 h-4" /> Export CSV
+            </button>
           </div>
-        </div>
-        <BarChart
-          data={dailySeries}
-          ariaLabel={`${DAILY_METRICS.find((m) => m.id === metric)!.label} par jour`}
-        />
-      </div>
+        }
+      >
+        {rows.length === 0 ? (
+          <p className="text-sm text-[#1C2B24]/60">Aucun participant pour le moment.</p>
+        ) : columns.length === 0 ? (
+          <p className="text-sm text-[#1C2B24]/60">Aucune case créée pour le moment.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto -mx-5 px-5">
+              <table className="border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr>
+                    <th className="sticky left-0 z-10 bg-white text-left font-semibold text-xs uppercase tracking-wide text-[#1C2B24]/55 pb-2 pr-4 min-w-[170px]">
+                      Participant
+                    </th>
+                    {columns.map((d) => {
+                      const card = cardByDate.get(d);
+                      return (
+                        <th
+                          key={d}
+                          title={`${formatShortFR(d)} | ${card?.content.title ?? 'case supprimée'}${
+                            card?.status === 'draft' ? ' (brouillon)' : ''
+                          }`}
+                          className="pb-2 px-0.5 font-normal"
+                        >
+                          <div
+                            className={`w-9 mx-auto text-center leading-tight ${
+                              d > today ? 'text-[#1C2B24]/40' : 'text-[#1C2B24]'
+                            }`}
+                          >
+                            <div className="font-display text-base font-semibold">{Number(d.slice(8, 10))}</div>
+                            <div className="text-[10px] uppercase">{formatWeekdayShortFR(d).replace('.', '')}</div>
+                          </div>
+                        </th>
+                      );
+                    })}
+                    <th className="pb-2 pl-4 text-right font-semibold text-xs uppercase tracking-wide text-[#1C2B24]/55">Ouvertes</th>
+                    <th className="pb-2 pl-4 text-right font-semibold text-xs uppercase tracking-wide text-[#1C2B24]/55">Quiz</th>
+                    <th className="pb-2 pl-4 text-left font-semibold text-xs uppercase tracking-wide text-[#1C2B24]/55 whitespace-nowrap">
+                      Dernière visite
+                    </th>
+                    <th className="pb-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((v) => {
+                    const qByCard = new Map(v.quiz_by_card.map((q) => [q.card_date, q]));
+                    return (
+                      <tr key={v.id} className="group">
+                        <td className="sticky left-0 z-10 bg-white group-hover:bg-[#FBF6EC] py-1.5 pr-4 border-t border-[#1C2B24]/8 font-medium whitespace-nowrap">
+                          {v.first_name} {v.last_name}
+                        </td>
+                        {columns.map((d) => {
+                          const opened = v.opened_dates.includes(d);
+                          const q = qByCard.get(d);
+                          return (
+                            <td key={d} className="py-1.5 px-0.5 border-t border-[#1C2B24]/8 group-hover:bg-[#FBF6EC]">
+                              <div
+                                title={`${formatShortFR(d)} : ${opened ? 'ouverte' : 'non ouverte'}${
+                                  q ? ` | quiz ${q.correct}/${q.total}` : ''
+                                }`}
+                                className={`w-9 h-8 mx-auto rounded-md flex items-center justify-center text-[11px] font-semibold ${
+                                  q
+                                    ? quizTone(q.correct, q.total)
+                                    : opened
+                                    ? 'bg-[#1F5A43] text-white'
+                                    : 'bg-[#1C2B24]/[0.06] text-transparent'
+                                }`}
+                              >
+                                {q ? `${q.correct}/${q.total}` : opened ? <Check className="w-4 h-4" /> : '·'}
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td className="py-1.5 pl-4 border-t border-[#1C2B24]/8 text-right font-semibold group-hover:bg-[#FBF6EC]">
+                          {v.opened_dates.length}
+                        </td>
+                        <td className="py-1.5 pl-4 border-t border-[#1C2B24]/8 text-right whitespace-nowrap group-hover:bg-[#FBF6EC]">
+                          {v.quiz_total > 0 ? (
+                            <>
+                              <span className="font-semibold">
+                                {v.quiz_correct}/{v.quiz_total}
+                              </span>{' '}
+                              <span className="text-[#1C2B24]/50">({pct(v.quiz_correct, v.quiz_total)} %)</span>
+                            </>
+                          ) : (
+                            <span className="text-[#1C2B24]/35">–</span>
+                          )}
+                        </td>
+                        <td className="py-1.5 pl-4 border-t border-[#1C2B24]/8 text-[#1C2B24]/65 whitespace-nowrap group-hover:bg-[#FBF6EC]">
+                          {formatDateTimeFR(v.last_seen_at)}
+                        </td>
+                        <td className="py-1.5 pl-2 border-t border-[#1C2B24]/8 text-right group-hover:bg-[#FBF6EC]">
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(v)}
+                            title="Supprimer ce participant"
+                            className="p-1.5 rounded-md text-[#A8201A] opacity-40 group-hover:opacity-100 hover:bg-[#F8E3E1] cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-[#1C2B24]/65">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded bg-[#1F5A43] inline-flex items-center justify-center">
+                  <Check className="w-3 h-3 text-white" />
+                </span>
+                ouverte
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded bg-[#1F5A43]" /> quiz tout juste
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded bg-[#D9A441]" /> quiz en partie juste
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded bg-[#A8201A]" /> quiz raté
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded bg-[#1C2B24]/[0.06]" /> non ouverte
+              </span>
+            </div>
+          </>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Per card */}
-        <div className="cartoon-box rounded-2xl bg-white p-5">
-          <h3 className="font-display text-base font-bold mb-3">Performance par case</h3>
-          {cardRows.length === 0 ? (
-            <p className="text-xs text-[#64748B] italic">Aucune case publiée et visible pour le moment.</p>
+        {/* Leaderboard */}
+        <Card title="Classement des quiz" sub="Premières réponses uniquement, rejouer ne compte pas">
+          {leaderboard.length === 0 ? (
+            <p className="text-sm text-[#1C2B24]/60">Personne n&apos;a encore répondu à un quiz.</p>
           ) : (
-            <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-              {cardRows.map((c) => {
-                const p = pct(c.opens, kpis.participants);
+            <ol className="space-y-2">
+              {leaderboard.map((v, i) => {
+                const p = pct(v.quiz_correct, v.quiz_total);
                 return (
-                  <div key={c.date} className="text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold truncate">
-                        <span className="text-[#64748B] mr-1.5">{formatShortFR(c.date)}</span>
-                        {titleByDate.get(c.date) || c.title}
+                  <li key={v.id} className="flex items-center gap-3">
+                    <span
+                      className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-sm font-semibold ${
+                        i === 0 ? 'bg-[#D9A441] text-[#1C2B24]' : i < 3 ? 'bg-[#1F5A43] text-white' : 'bg-[#1C2B24]/[0.06]'
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-medium truncate">
+                          {v.first_name} {v.last_name}
+                        </span>
+                        <span className="text-sm whitespace-nowrap">
+                          <strong>
+                            {v.quiz_correct}/{v.quiz_total}
+                          </strong>{' '}
+                          <span className="text-[#1C2B24]/50">{p} %</span>
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 rounded-full bg-[#1C2B24]/[0.06] overflow-hidden">
+                        <div className="h-full rounded-full bg-[#1F5A43]" style={{ width: `${p}%` }} />
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Card>
+
+        {/* Per card */}
+        <Card title="Résultats par case" sub="Ouvertures (part des participants) et réussite au quiz">
+          {perCard.length === 0 ? (
+            <p className="text-sm text-[#1C2B24]/60">Aucune case pour le moment.</p>
+          ) : (
+            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+              {perCard.map((c) => {
+                const p = pct(c.opens, kpis.participants);
+                const qp = c.quiz ? pct(c.quiz.correct, c.quiz.answers) : null;
+                return (
+                  <div key={c.date}>
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="truncate">
+                        <span className="text-[#1C2B24]/50 mr-2">{formatShortFR(c.date)}</span>
+                        <span className="font-medium">{c.title}</span>
                       </span>
-                      <span className="shrink-0 font-bold text-[#0F172A]">
-                        {c.opens} <span className="text-[#64748B] font-semibold">({p}%)</span>
+                      <span className="whitespace-nowrap font-semibold">
+                        {c.opens} <span className="text-[#1C2B24]/50 font-normal">({p} %)</span>
                       </span>
                     </div>
-                    <div className="mt-1 h-2 rounded-full bg-[#F1F5F9] overflow-hidden">
-                      <div className="h-full rounded-full bg-[#65A30D]" style={{ width: `${p}%` }} />
+                    <div className="mt-1 h-2 rounded-full bg-[#1C2B24]/[0.06] overflow-hidden">
+                      <div className="h-full rounded-full bg-[#1F5A43]" style={{ width: `${p}%` }} />
                     </div>
-                    <div className="text-[10px] text-[#64748B] mt-0.5">
-                      {c.copilot} clic{c.copilot > 1 ? 's' : ''} Copilot/copie • {c.resources} clic
-                      {c.resources > 1 ? 's' : ''} ressource
+                    <div className="text-xs text-[#1C2B24]/55 mt-1">
+                      {c.copilot} clic{c.copilot > 1 ? 's' : ''} Copilot/copie
+                      {c.quiz && (
+                        <>
+                          {' | '}quiz : <strong className="text-[#9A6B12]">{qp} %</strong> de bonnes réponses (
+                          {c.quiz.players} joueur{c.quiz.players > 1 ? 's' : ''})
+                        </>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </div>
-
-        {/* Hours */}
-        <div className="cartoon-box rounded-2xl bg-white p-5">
-          <h3 className="font-display text-base font-bold mb-1">Heures d&apos;ouverture des cases</h3>
-          <p className="text-[11px] text-[#64748B] mb-4">
-            Utile pour choisir le meilleur moment d&apos;une relance (heure de Paris).
-          </p>
-          <BarChart data={hourSeries} labelEvery={3} ariaLabel="Ouvertures par heure de la journée" />
-        </div>
+        </Card>
       </div>
 
-      {/* Participants */}
-      <div className="cartoon-box rounded-2xl bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 className="font-display text-base font-bold">
-            Participants ({rows.length}
-            {rows.length !== visitors.length ? ` / ${visitors.length}` : ''})
-          </h3>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-[#64748B] absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher un nom…"
-                className="pl-8 pr-3 py-1.5 rounded-xl border border-[#1C2B24]/15 text-xs font-medium w-48"
-              />
-            </div>
-            <select
-              value={sortKey}
-              onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="px-2.5 py-1.5 rounded-xl border border-[#1C2B24]/15 text-xs font-bold bg-white"
-              aria-label="Trier par"
-            >
-              <option value="last_seen">Tri : dernière visite</option>
-              <option value="opens">Tri : cases ouvertes</option>
-              <option value="visits">Tri : nombre de visites</option>
-              <option value="created">Tri : inscription récente</option>
-              <option value="name">Tri : nom</option>
-            </select>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="cartoon-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0EA5E9] text-white text-xs font-bold cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export CSV
-            </button>
+      <Card
+        title="Activité par jour"
+        right={
+          <div className="inline-flex flex-wrap rounded-lg bg-[#1C2B24]/[0.06] p-1 gap-1">
+            {DAILY_METRICS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMetric(m.id)}
+                className={`px-3 py-1.5 rounded-md text-sm cursor-pointer ${
+                  metric === m.id ? 'bg-white shadow-sm font-semibold' : 'text-[#1C2B24]/65 hover:text-[#1C2B24]'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
-        </div>
+        }
+      >
+        <BarChart data={dailySeries} ariaLabel={`${DAILY_METRICS.find((m) => m.id === metric)!.label} par jour`} />
+      </Card>
 
-        {rows.length === 0 ? (
-          <p className="text-xs text-[#64748B] italic">Aucun participant pour le moment.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-[#64748B] border-b-2 border-[#E2E8F0]">
-                  <th className="py-2 pr-2 w-6" />
-                  <th className="py-2 pr-3">Nom</th>
-                  <th className="py-2 pr-3">Inscription</th>
-                  <th className="py-2 pr-3">Dernière visite</th>
-                  <th className="py-2 pr-3 text-right">Visites</th>
-                  <th className="py-2 pr-3 min-w-[140px]">Cases ouvertes</th>
-                  <th className="py-2 pr-3 text-right">Clics</th>
-                  <th className="py-2 w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((v) => {
-                  const opened = openedLive(v);
-                  const p = pct(opened, nLive);
-                  const isOpen = expanded === v.id;
-                  return (
-                    <React.Fragment key={v.id}>
-                      <tr className="border-b border-[#F1F5F9] hover:bg-[#F8FAFC]">
-                        <td className="py-2 pr-2">
-                          <button
-                            type="button"
-                            onClick={() => setExpanded(isOpen ? null : v.id)}
-                            aria-label="Détail"
-                            className="p-0.5 rounded hover:bg-[#E2E8F0] cursor-pointer"
-                          >
-                            {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                          </button>
-                        </td>
-                        <td className="py-2 pr-3 font-bold text-[#0F172A] whitespace-nowrap">
-                          {v.first_name} {v.last_name}
-                        </td>
-                        <td className="py-2 pr-3 text-[#475569] whitespace-nowrap">{formatDateTimeFR(v.created_at)}</td>
-                        <td className="py-2 pr-3 text-[#475569] whitespace-nowrap">{formatDateTimeFR(v.last_seen_at)}</td>
-                        <td className="py-2 pr-3 text-right font-semibold">{v.visit_count}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-2 rounded-full bg-[#F1F5F9] overflow-hidden">
-                              <div className="h-full rounded-full bg-[#65A30D]" style={{ width: `${p}%` }} />
-                            </div>
-                            <span className="font-bold whitespace-nowrap">
-                              {opened}/{nLive}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-2 pr-3 text-right text-[#475569]">{v.copilot_count + v.resource_count}</td>
-                        <td className="py-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(v)}
-                            title="Supprimer ce participant"
-                            className="p-1 rounded-lg text-[#BE123C] hover:bg-[#FFE4E6] cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                      {isOpen && (
-                        <tr className="bg-[#F8FAFC]">
-                          <td />
-                          <td colSpan={7} className="py-3 pr-3">
-                            <div className="text-[11px] text-[#475569] mb-1.5">
-                              Dernière case ouverte : <strong>{formatDateTimeFR(v.last_open_at)}</strong> •{' '}
-                              {v.copilot_count} clic(s) Copilot/copie • {v.resource_count} clic(s) ressource
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {liveCards.map((c) => {
-                                const has = v.opened_dates.includes(c.publish_date);
-                                return (
-                                  <span
-                                    key={c.publish_date}
-                                    title={c.content.title}
-                                    className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${
-                                      has
-                                        ? 'bg-[#ECFCCB] border-[#65A30D] text-[#3F6212]'
-                                        : 'bg-white border-[#CBD5E1] text-[#94A3B8]'
-                                    }`}
-                                  >
-                                    {has ? '✓' : '○'} {formatShortFR(c.publish_date)}
-                                  </span>
-                                );
-                              })}
-                              {liveCards.length === 0 && <span className="text-[11px] italic">Aucune case visible.</span>}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <Card title="Heures d'ouverture des cases" sub="Heure de Paris, utile pour choisir le moment d'une relance">
+        <BarChart data={hourSeries} labelEvery={3} ariaLabel="Ouvertures par heure de la journée" />
+      </Card>
     </div>
   );
 };

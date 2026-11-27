@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, Star, Lock, Sparkles, Search, CheckCircle2 } from 'lucide-react';
+import { X, Star, Search, Check, ArrowRight } from 'lucide-react';
 import { AdventTip, TipCategory } from '../types/advent';
 import { CATEGORY_META } from '../data/cardStyles';
-import { formatDayMonthFR, isTipLocked } from '../utils/calendar';
+import { formatDayMonthFR, formatWeekdayShortFR, isTipLocked } from '../utils/calendar';
 
 interface PastTipsDrawerProps {
   tips: AdventTip[];
@@ -13,6 +13,8 @@ interface PastTipsDrawerProps {
   onClose: () => void;
 }
 
+type Filter = 'ALL' | 'TODO' | 'BOOKMARKS' | TipCategory;
+
 export const PastTipsDrawer: React.FC<PastTipsDrawerProps> = ({
   tips,
   activeDay,
@@ -21,114 +23,118 @@ export const PastTipsDrawer: React.FC<PastTipsDrawerProps> = ({
   onSelectTip,
   onClose,
 }) => {
-  const [filterCat, setFilterCat] = useState<'ALL' | 'BOOKMARKS' | TipCategory>('ALL');
+  const [filter, setFilter] = useState<Filter>('ALL');
   const [search, setSearch] = useState('');
 
   const availableTips = tips.filter((t) => !isTipLocked(t, activeDay));
-  const availableDays = new Set(availableTips.map((t) => t.day));
-  const unopenedPast = availableTips.filter((t) => !openedDays.includes(t.day));
+  const openedCount = availableTips.filter((t) => openedDays.includes(t.day)).length;
+  const todoCount = availableTips.length - openedCount;
+  const favCount = availableTips.filter((t) => bookmarkedDays.includes(t.day)).length;
+  const usedCategories = Array.from(
+    new Set(availableTips.filter((t) => openedDays.includes(t.day)).map((t) => t.category))
+  );
+  const progress = availableTips.length ? Math.round((openedCount / availableTips.length) * 100) : 0;
 
   const filtered = availableTips.filter((t) => {
     const isOpened = openedDays.includes(t.day);
-    if (filterCat === 'BOOKMARKS') {
-      if (!bookmarkedDays.includes(t.day)) return false;
-    } else if (filterCat !== 'ALL') {
-      if (t.category !== filterCat) return false;
-    }
+    if (filter === 'TODO' && isOpened) return false;
+    if (filter === 'BOOKMARKS' && !bookmarkedDays.includes(t.day)) return false;
+    if (filter !== 'ALL' && filter !== 'TODO' && filter !== 'BOOKMARKS' && t.category !== filter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      // Only match text of opened tips so we don't spoil unopened ones!
-      if (!isOpened) return `jour ${t.day}`.includes(q);
+      // Only search the text of opened cards, so nothing gets spoiled
+      if (!isOpened) return `${t.day}`.includes(q);
       return (
         t.title.toLowerCase().includes(q) ||
         t.summary.toLowerCase().includes(q) ||
         t.practice.toLowerCase().includes(q) ||
-        `jour ${t.day}`.includes(q)
+        `${t.day}`.includes(q)
       );
     }
     return true;
   });
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-[#0F172A]/60 backdrop-blur-xs"
-      onClick={onClose}
+  const chip = (id: Filter, label: string) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => setFilter(id)}
+      className={`px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-colors ${
+        filter === id
+          ? 'bg-[#1F5A43] text-white'
+          : 'bg-white text-[#1C2B24]/75 border border-[#1C2B24]/15 hover:border-[#1F5A43] hover:text-[#1F5A43]'
+      }`}
     >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-[#0E3B2E]/70 backdrop-blur-sm" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg h-full bg-[#FFFDF7] border-l-[3.5px] border-[#1E293B] shadow-[-8px_0px_0px_#1E293B] flex flex-col animate-pop-in"
+        className="w-full max-w-xl h-full bg-[#FBF6EC] shadow-2xl flex flex-col animate-slide-up"
       >
         {/* Header */}
-        <div className="p-5 border-b-[3px] border-[#1E293B] bg-[#F8FAFC] flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-2xl font-bold text-[#1E293B] flex items-center gap-2">
-              📚 Tips Passés &amp; Favoris
-            </h2>
-            <p className="text-xs font-semibold text-[#64748B] mt-0.5">
-              {openedDays.filter((d) => availableDays.has(d)).length} débloqués sur {availableTips.length} jours disponibles
-              {unopenedPast.length > 0 && (
-                <span className="text-[#E11D48] ml-1">
-                  • {unopenedPast.length} encore à gratter !
-                </span>
+        <div className="bg-[#0E3B2E] text-white px-6 pt-6 pb-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Mon calendrier</p>
+              <h2 className="font-display text-3xl font-semibold mt-1">Cases ouvertes</h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="mt-5 flex items-end justify-between gap-4">
+            <p className="text-[15px] text-white/85">
+              <strong className="text-white text-xl">{openedCount}</strong> ouverte{openedCount > 1 ? 's' : ''} sur{' '}
+              {availableTips.length} disponible{availableTips.length > 1 ? 's' : ''}
+              {todoCount > 0 && (
+                <span className="text-[#F2C96B]"> | {todoCount} à gratter</span>
               )}
             </p>
+            <span className="text-sm text-white/60">{progress} %</span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cartoon-btn p-2 rounded-xl bg-white cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="mt-2 h-2 rounded-full bg-white/15 overflow-hidden">
+            <div className="h-full rounded-full bg-[#D9A441] transition-all" style={{ width: `${progress}%` }} />
+          </div>
         </div>
 
-        {/* Search & Category Filters */}
-        <div className="p-4 border-b-2 border-[#E2E8F0] space-y-3 bg-white">
+        {/* Search & filters */}
+        <div className="px-6 py-4 space-y-3 border-b border-[#1C2B24]/10">
           <div className="relative">
-            <Search className="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[#1C2B24]/50 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher un tip débloqué, un agent, une équipe..."
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-[#1E293B] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
+              placeholder="Rechercher dans les cases ouvertes…"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-[#1C2B24]/15 text-[15px] focus:outline-none focus:border-[#1F5A43] focus:ring-2 focus:ring-[#1F5A43]/20"
             />
           </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {(['ALL', 'BOOKMARKS', ...(Object.keys(CATEGORY_META) as TipCategory[])] as const).map(
-              (cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setFilterCat(cat)}
-                  className={`px-2.5 py-1 rounded-lg border border-[#1E293B] text-xs font-bold cursor-pointer transition-colors ${
-                    filterCat === cat
-                      ? 'bg-[#1E293B] text-white'
-                      : 'bg-[#F8FAFC] text-[#1E293B] hover:bg-[#E2E8F0]'
-                  }`}
-                >
-                  {cat === 'ALL'
-                    ? 'Tous'
-                    : cat === 'BOOKMARKS'
-                    ? `⭐ Favoris (${bookmarkedDays.filter((d) => availableDays.has(d)).length})`
-                    : `${CATEGORY_META[cat].icon} ${CATEGORY_META[cat].label}`}
-                </button>
-              )
-            )}
+          <div className="flex flex-wrap gap-2">
+            {chip('ALL', `Toutes (${availableTips.length})`)}
+            {todoCount > 0 && chip('TODO', `À gratter (${todoCount})`)}
+            {favCount > 0 && chip('BOOKMARKS', `Favoris (${favCount})`)}
+            {usedCategories.map((c) => chip(c, CATEGORY_META[c].label))}
           </div>
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2.5">
           {filtered.length === 0 ? (
-            <div className="text-center py-12 px-4">
-              <div className="text-4xl mb-2">🤖</div>
-              <p className="font-display font-bold text-lg text-[#1E293B]">
-                Aucun tip trouvé
-              </p>
-              <p className="text-sm text-[#64748B] mt-1">
-                Grattez des cases du calendrier pour débloquer plus de tips !
+            <div className="text-center py-16 px-4">
+              <p className="font-display text-xl font-semibold text-[#1C2B24]">Rien à afficher</p>
+              <p className="text-[15px] text-[#1C2B24]/65 mt-1">
+                {availableTips.length === 0
+                  ? 'Aucune case n’est encore disponible : revenez le premier jour du calendrier.'
+                  : 'Grattez des cases du calendrier pour les retrouver ici.'}
               </p>
             </div>
           ) : (
@@ -136,69 +142,56 @@ export const PastTipsDrawer: React.FC<PastTipsDrawerProps> = ({
               const isOpened = openedDays.includes(tip.day);
               const isBookmarked = bookmarkedDays.includes(tip.day);
               const catMeta = CATEGORY_META[tip.category];
-
               return (
                 <button
-                  key={tip.day}
+                  key={tip.date}
                   type="button"
                   onClick={() => {
                     onClose();
                     onSelectTip(tip);
                   }}
-                  className={`w-full text-left p-3.5 rounded-2xl border border-[#1E293B] shadow-sm hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-sm transition-all cursor-pointer flex items-start gap-3 ${
-                    isOpened ? 'bg-white' : 'bg-[#FFF1F2]'
-                  }`}
+                  className="group w-full text-left rounded-xl bg-white border border-[#1C2B24]/10 hover:border-[#1F5A43]/40 hover:shadow-md transition-all cursor-pointer flex items-stretch overflow-hidden"
                 >
                   <div
-                    className={`w-11 h-11 shrink-0 rounded-xl border border-[#1E293B] flex items-center justify-center font-display font-bold text-lg ${
-                      isOpened ? 'bg-[#86BC25] text-white' : 'bg-[#FFE4E6] text-[#E11D48]'
+                    className={`w-16 shrink-0 flex flex-col items-center justify-center py-3 ${
+                      isOpened ? 'bg-[#1F5A43] text-white' : 'bg-[#A8201A] text-white'
                     }`}
                   >
-                    {tip.day}
+                    <span className="font-display text-2xl font-semibold leading-none">{tip.day}</span>
+                    <span className="text-[11px] uppercase tracking-wide opacity-80 mt-1">
+                      {formatWeekdayShortFR(tip.date).replace('.', '')}
+                    </span>
                   </div>
 
-                  {isOpened ? (
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[#1E293B] text-[10px] font-bold ${catMeta.bg} ${catMeta.text}`}
-                        >
-                          {catMeta.icon} {catMeta.label}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {isBookmarked && (
-                            <Star className="w-3.5 h-3.5 fill-[#F59E0B] text-[#1E293B]" />
-                          )}
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#65A30D]" />
+                  <div className="flex-1 min-w-0 px-4 py-3">
+                    {isOpened ? (
+                      <>
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#9A6B12]">
+                          {catMeta.label}
+                          {isBookmarked && <Star className="w-3.5 h-3.5 fill-[#D9A441] text-[#D9A441]" />}
+                          <Check className="w-3.5 h-3.5 text-[#1F5A43] ml-auto" />
                         </div>
-                      </div>
-                      <h4 className="font-display font-bold text-sm text-[#1E293B] mt-1 truncate">
-                        {tip.emoji} {tip.title}
-                      </h4>
-                      <p className="text-xs text-[#64748B] line-clamp-1 mt-0.5">
-                        {tip.summary}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#E11D48]">
-                          <Lock className="w-3 h-3" />
-                          NON GRATTÉ
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00A3E0]">
-                          <Sparkles className="w-3 h-3" />
-                          Gratter maintenant →
-                        </span>
-                      </div>
-                      <p className="font-display font-bold text-sm text-[#1E293B] mt-1">
-                        Case du {formatDayMonthFR(tip.date)} encore fermée
-                      </p>
-                      <p className="text-xs text-[#64748B]">
-                        Cliquez pour gratter et découvrir le tip caché !
-                      </p>
-                    </div>
-                  )}
+                        <h4 className="font-display text-[17px] font-semibold text-[#1C2B24] mt-1 leading-snug line-clamp-2">
+                          {tip.title}
+                        </h4>
+                        {tip.summary && (
+                          <p className="text-sm text-[#1C2B24]/65 mt-0.5 line-clamp-1">{tip.summary}</p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-[#A8201A]">
+                          Pas encore grattée
+                        </div>
+                        <p className="font-display text-[17px] font-semibold text-[#1C2B24] mt-1 capitalize">
+                          {formatDayMonthFR(tip.date)}
+                        </p>
+                        <p className="text-sm text-[#A8201A] mt-0.5 inline-flex items-center gap-1">
+                          Gratter maintenant <ArrowRight className="w-3.5 h-3.5" />
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </button>
               );
             })
