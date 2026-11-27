@@ -79,6 +79,10 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
   const hasPrompt = Boolean(tip.promptOrAction && tip.promptOrAction.trim());
   // With a quiz, the explanation text stays hidden until a first answer (no spoilers!)
   const contentUnlocked = !tip.quiz || quizAnswered;
+  // Visual quiz (slides / photos): wider modal so every option stays readable
+  const wideQuiz = Boolean(
+    tip.quiz?.questions.some((q) => q.options?.some((o) => o.slide || o.image))
+  );
 
   useEffect(() => {
     setQuizAnswered(false);
@@ -285,7 +289,7 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-pop-in relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#FBF6EC] border-[3px] border-[#1C2B24]/15 shadow-sm p-5 sm:p-7"
+        className={`animate-pop-in relative w-full ${wideQuiz ? 'max-w-5xl' : 'max-w-2xl'} max-h-[92vh] overflow-y-auto rounded-3xl bg-[#FBF6EC] border-[3px] border-[#1C2B24]/15 shadow-sm p-5 sm:p-7`}
       >
         {/* Top Modal Header */}
         <div className="flex items-center justify-between gap-3 mb-5">

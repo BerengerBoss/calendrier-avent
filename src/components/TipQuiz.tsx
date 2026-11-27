@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import confetti from 'canvas-confetti';
-import { ArrowRight, ExternalLink, RotateCcw, Trophy } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Maximize2, RotateCcw, Trophy, X } from 'lucide-react';
 import { QuizOption, QuizQuestion, QuizSlide, TipQuiz as TipQuizData } from '../types/advent';
 
 interface TipQuizProps {
@@ -35,26 +36,44 @@ const SLIDE_THEME: Record<QuizSlide['theme'], { bg: string; title: string; line:
   green: { bg: 'bg-[#F0FDF4]', title: 'text-[#14532D]', line: 'text-[#3F6212]', bar: 'bg-[#0F172A]' },
 };
 
+/** Slide mock whose text scales with its own width (readable in the grid and in the zoom). */
 const MiniSlide: React.FC<{ slide: QuizSlide }> = ({ slide }) => {
   const t = SLIDE_THEME[slide.theme] ?? SLIDE_THEME.light;
   return (
     <div
-      className={`relative w-full aspect-video rounded-lg border border-[#1C2B24]/15 overflow-hidden ${t.bg} p-2.5 sm:p-3 text-left`}
+      style={{ containerType: 'inline-size' }}
+      className={`relative w-full aspect-video rounded-lg border border-[#1C2B24]/15 overflow-hidden ${t.bg} text-left`}
     >
-      <div className={`absolute left-0 top-0 h-full w-1.5 ${t.bar}`} />
-      <div className={`font-display font-bold text-[11px] sm:text-[13px] leading-tight ${t.title} pl-1.5`}>
-        {slide.title}
+      <div className={`absolute left-0 top-0 h-full ${t.bar}`} style={{ width: '1.4cqw' }} />
+      <div style={{ padding: '5cqw 5cqw 4cqw 6.5cqw' }}>
+        <div className={`font-display font-bold leading-[1.15] ${t.title}`} style={{ fontSize: '5.6cqw' }}>
+          {slide.title}
+        </div>
+        <ul style={{ marginTop: '3.2cqw' }} className="space-y-[1.4cqw]">
+          {slide.lines.map((l, i) => (
+            <li key={i} className={`leading-snug ${t.line}`} style={{ fontSize: '3.9cqw' }}>
+              {l}
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="mt-1.5 space-y-0.5 pl-1.5">
-        {slide.lines.map((l, i) => (
-          <li key={i} className={`text-[9px] sm:text-[10.5px] leading-snug ${t.line}`}>
-            {l}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 };
+
+const OptionVisual: React.FC<{ opt: QuizOption; zoomed?: boolean }> = ({ opt, zoomed }) =>
+  opt.slide ? (
+    <MiniSlide slide={opt.slide} />
+  ) : opt.image ? (
+    <img
+      src={opt.image}
+      alt={opt.label}
+      loading="lazy"
+      className={`w-full rounded-lg border border-[#1C2B24]/15 bg-white ${
+        zoomed ? 'max-h-[78vh] object-contain' : 'aspect-[4/3] object-cover'
+      }`}
+    />
+  ) : null;
 
 export const TipQuiz: React.FC<TipQuizProps> = ({
   quiz,
@@ -68,6 +87,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
+  const [zoom, setZoom] = useState<number | null>(null);
 
   useEffect(() => {
     setIndex(0);
@@ -87,6 +107,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
   const handlePick = (i: number) => {
     if (answered) return;
     setPicked(i);
+    setZoom(null);
     onAnswer?.(index, i, Boolean(options[i]?.correct));
     if (options[i]?.correct) {
       setScore((s) => s + 1);
@@ -106,6 +127,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
     if (index + 1 < total) {
       setIndex(index + 1);
       setPicked(null);
+      setZoom(null);
     } else {
       setDone(true);
       if (score === total) {
@@ -204,7 +226,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
             isTrueFalse
               ? 'grid-cols-2'
               : hasVisuals
-              ? 'grid-cols-1 sm:grid-cols-3'
+              ? 'grid-cols-1 md:grid-cols-3 gap-4'
               : 'grid-cols-1 sm:grid-cols-2'
           }`}
         >
@@ -213,6 +235,52 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
             const reveal = answered && opt.correct;
             const wrongPick = answered && isPicked && !opt.correct;
             const tfIcon = isTrueFalse ? (opt.label === 'Vrai' ? '👍' : '👎') : null;
+            if (opt.slide || opt.image) {
+              return (
+                <div
+                  key={i}
+                  style={{ animationDelay: `${i * 60}ms` }}
+                  className={`animate-slide-up rounded-xl border p-2.5 transition-all ${
+                    reveal
+                      ? 'border-[#1F5A43] bg-[#EAF2EC] ring-2 ring-[#1F5A43]'
+                      : wrongPick
+                      ? 'border-[#A8201A] bg-[#F8E3E1] ring-2 ring-[#A8201A]'
+                      : answered
+                      ? 'border-[#1C2B24]/10 bg-white opacity-60'
+                      : 'border-[#1C2B24]/15 bg-white shadow-sm'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setZoom(i)}
+                    title="Agrandir"
+                    className="group relative block w-full cursor-zoom-in"
+                  >
+                    <OptionVisual opt={opt} />
+                    <span className="absolute top-2 right-2 p-1.5 rounded-md bg-black/55 text-white opacity-80 group-hover:opacity-100">
+                      <Maximize2 className="w-4 h-4" />
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-2 mt-2.5">
+                    <span className="shrink-0 w-7 h-7 rounded-md bg-[#0E3B2E] text-white text-sm font-bold flex items-center justify-center">
+                      {LETTERS[i] ?? i + 1}
+                    </span>
+                    <span className="font-semibold text-[15px] truncate">{opt.label}</span>
+                    {reveal && <span className="ml-auto text-lg animate-bounce-in">✅</span>}
+                    {wrongPick && <span className="ml-auto text-lg animate-bounce-in">❌</span>}
+                    {!answered && (
+                      <button
+                        type="button"
+                        onClick={() => handlePick(i)}
+                        className="ml-auto px-3.5 py-1.5 rounded-lg bg-[#A8201A] hover:bg-[#8E1B16] text-white text-sm font-semibold cursor-pointer"
+                      >
+                        Choisir
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            }
             return (
               <button
                 key={i}
@@ -261,6 +329,61 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
             );
           })}
         </div>
+
+        {/* Zoom on a visual option */}
+        {zoom !== null && options[zoom] && createPortal(
+          <div
+            className="fixed inset-0 z-[90] bg-[#0E3B2E]/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-8"
+            onClick={() => setZoom(null)}
+            role="dialog"
+            aria-label="Visuel agrandi"
+          >
+            <div className="w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between gap-3 mb-3 text-white">
+                <span className="font-display text-xl font-semibold">
+                  {LETTERS[zoom] ?? zoom + 1}. {options[zoom].label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoom(null)}
+                  aria-label="Fermer"
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <OptionVisual opt={options[zoom]} zoomed />
+              <div className="flex items-center justify-between gap-3 mt-4">
+                <button
+                  type="button"
+                  disabled={zoom === 0}
+                  onClick={() => setZoom(zoom - 1)}
+                  className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-semibold hover:bg-white/20 cursor-pointer disabled:opacity-30"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Précédent
+                </button>
+                {!answered && (
+                  <button
+                    type="button"
+                    onClick={() => handlePick(zoom)}
+                    className="px-5 py-2.5 rounded-lg bg-[#A8201A] hover:bg-[#8E1B16] text-white font-semibold cursor-pointer"
+                  >
+                    Choisir {LETTERS[zoom] ?? zoom + 1}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={zoom === options.length - 1}
+                  onClick={() => setZoom(zoom + 1)}
+                  className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-semibold hover:bg-white/20 cursor-pointer disabled:opacity-30"
+                >
+                  Suivant <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
         {/* Feedback */}
         {answered && (
