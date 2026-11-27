@@ -29,17 +29,21 @@ import {
   fetchMyOpens,
   fetchServerToday,
   fetchSettings,
+  fetchSharedCards,
   recordEvent,
   recordOpen,
   registerVisitor,
   visitorSession,
+  ShareClosedError,
 } from './lib/api';
 import {
+  clearShareToken,
   clearVisitor,
   consumeNewSessionFlag,
   loadBookmarks,
   loadLocalOpened,
   loadParallax,
+  loadShareToken,
   loadVisitor,
   markSessionVisited,
   saveBookmarks,
@@ -67,6 +71,8 @@ import { NameGateModal } from './components/NameGateModal';
 type GridFilter = 'all' | 'to-scratch' | 'opened' | 'locked';
 
 const REFRESH_INTERVAL_MS = 60_000;
+/** Faster polling with a share link, so closing the link takes effect quickly. */
+const SHARE_REFRESH_INTERVAL_MS = 20_000;
 
 const uniqSorted = (dates: string[]) => Array.from(new Set(dates)).sort();
 
@@ -114,6 +120,13 @@ function CalendarApp() {
   const [serverToday, setServerToday] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // ---- Share link (early access to every card) ----
+  const [shareToken, setShareToken] = useState<string | null>(() => loadShareToken());
+  const [sharedCards, setSharedCards] = useState<CardRecord[] | null>(null);
+  const [shareClosedNotice, setShareClosedNotice] = useState(false);
+  const shareTokenRef = useRef<string | null>(shareToken);
+  shareTokenRef.current = shareToken;
+
   // ---- Visitor ----
   const [visitor, setVisitor] = useState<Visitor | null>(null);
   const [visitorReady, setVisitorReady] = useState(false);
@@ -155,6 +168,22 @@ function CalendarApp() {
       setSettings((prev) => (prev && JSON.stringify(prev) === JSON.stringify(s) ? prev : s));
       setCards((prev) => (JSON.stringify(prev) === JSON.stringify(c) ? prev : c));
       if (t) setServerToday(t);
+      const token = shareTokenRef.current;
+      if (token) {
+        try {
+          const shared = await fetchSharedCards(token);
+          setSharedCards((prev) => (JSON.stringify(prev) === JSON.stringify(shared) ? prev : shared));
+        } catch (err) {
+          if (err instanceof ShareClosedError) {
+            // Link closed by the admin: back to the normal calendar, immediately
+            clearShareToken();
+            setShareToken(null);
+            setSharedCards(null);
+            setShareClosedNotice(true);
+          }
+          // other errors (network): keep the last known state
+        }
+      }
       setLoadError(null);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Erreur de chargement');
@@ -171,7 +200,7 @@ function CalendarApp() {
       const recovered: string[] = [];
       for (const d of missing) {
         try {
-          if (await recordOpen(v.id, d)) recovered.push(d);
+          if (await recordOpen(v.id, d, shareTokenRef.current)) recovered.push(d);
         } catch {
           recovered.push(d); // still offline: keep it locally, retry later
         }
@@ -196,7 +225,10 @@ function CalendarApp() {
 
   useEffect(() => {
     void loadData();
-    const id = window.setInterval(() => void refreshAll(), REFRESH_INTERVAL_MS);
+    const id = window.setInterval(
+      () => void refreshAll(),
+      shareToken ? SHARE_REFRESH_INTERVAL_MS : REFRESH_INTERVAL_MS
+    );
     const onVisible = () => {
       if (document.visibilityState === 'visible') void refreshAll();
     };
@@ -205,7 +237,7 @@ function CalendarApp() {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [loadData, refreshAll]);
+  }, [loadData, refreshAll, shareToken]);
 
   // Admin rights change what RLS returns => reload cards
   useEffect(() => {
@@ -363,8 +395,10 @@ function CalendarApp() {
   const previewActive = isAdmin && preview !== null;
   const viewDate = previewActive && preview ? preview.date : realToday;
   const includeDrafts = previewActive && preview ? preview.includeDrafts : false;
-  const unlockAll = previewActive && preview ? Boolean(preview.unlockAll) : false;
-  // Test mode "tout déverrouiller": every slot with content becomes openable
+  // Share link active (admin preview always wins, so the admin can still test dates)
+  const shareActive = !previewActive && Boolean(shareToken) && sharedCards !== null;
+  const unlockAll = (previewActive && preview ? Boolean(preview.unlockAll) : false) || shareActive;
+  // "Tout déverrouiller" / share link: every slot with content becomes openable
   const activeDay = unlockAll ? 32 : computeActiveDay(viewDate, cal.start_date);
 
   const slots = useMemo(
@@ -373,7 +407,8 @@ function CalendarApp() {
   );
 
   const tips = useMemo<AdventTip[]>(() => {
-    const byDate = new Map(cards.map((c) => [c.publish_date, c]));
+    const source = shareActive && sharedCards ? sharedCards : cards;
+    const byDate = new Map(source.map((c) => [c.publish_date, c]));
     const out: AdventTip[] = [];
     slots.forEach((date, index) => {
       const card = byDate.get(date);
@@ -383,6 +418,8 @@ function CalendarApp() {
         card &&
         (previewActive
           ? includeDrafts || card.status === 'published'
+          : shareActive
+          ? true // the server already filtered what this link may see
           : card.status === 'published' && date <= realToday);
       if (card && visible) {
         out.push({ ...card.content, day: dayOfMonth(date), date, lockLabel });
@@ -401,7 +438,7 @@ function CalendarApp() {
       }
     });
     return out;
-  }, [cards, slots, viewDate, realToday, previewActive, includeDrafts, unlockAll]);
+  }, [cards, sharedCards, shareActive, slots, viewDate, realToday, previewActive, includeDrafts, unlockAll]);
 
   const activeOpenedDates = previewActive ? previewOpened : openedDates;
 
@@ -520,7 +557,7 @@ function CalendarApp() {
       setOpenedDates(next);
       if (visitor) {
         saveLocalOpened(visitor.id, next);
-        recordOpen(visitor.id, tip.date).catch(() => {
+        recordOpen(visitor.id, tip.date, shareActive ? shareToken : null).catch(() => {
           // kept locally, re-sent at the next sync
         });
       }
@@ -530,7 +567,7 @@ function CalendarApp() {
 
   const handleTrack = (type: TrackedEventType) => {
     if (previewActive || !visitor || !selectedTip || selectedTip.placeholder) return;
-    recordEvent(visitor.id, type, selectedTip.date).catch(() => {});
+    recordEvent(visitor.id, type, selectedTip.date, shareActive ? shareToken : null).catch(() => {});
   };
 
   const handleToggleBookmark = (day: number) => {
@@ -621,6 +658,24 @@ function CalendarApp() {
         </div>
       )}
 
+      {shareActive && (
+        <div className="relative z-30 bg-[#D9A441] text-[#1C2B24] px-4 py-2 text-center text-sm font-medium">
+          Accès anticipé : toutes les cases du calendrier sont ouvertes pour vous.
+        </div>
+      )}
+      {shareClosedNotice && (
+        <div className="relative z-30 bg-[#FBF6EC] text-[#1C2B24] px-4 py-2 text-center text-sm flex flex-wrap items-center justify-center gap-3">
+          <span>Ce lien de partage a été fermé : vous voyez maintenant le calendrier normal.</span>
+          <button
+            type="button"
+            onClick={() => setShareClosedNotice(false)}
+            className="underline font-medium cursor-pointer"
+          >
+            OK
+          </button>
+        </div>
+      )}
+
       {/* Main Layout */}
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-6 pb-12 flex-1">
         <header className="cartoon-box-lg rounded-2xl bg-[#FBF6EC] mb-6 overflow-hidden">
@@ -631,14 +686,15 @@ function CalendarApp() {
                 type="button"
                 onClick={handleEmblemClick}
                 title="Deloitte Transformation & Change"
-                className="flex items-baseline gap-3 cursor-pointer text-left"
+                className="flex items-center gap-3 h-9 cursor-pointer text-left"
               >
                 <span className="text-[26px] sm:text-[30px] font-bold tracking-tight text-black leading-none" style={{ fontFamily: 'Inter, Arial, sans-serif' }}>
                   Deloitte<span className="text-[#86BC25]">.</span>
                 </span>
-                <span className="text-sm sm:text-[15px] font-medium text-[#1C2B24]/80">Transformation &amp; Change</span>
+                <span aria-hidden className="w-px h-6 bg-[#1C2B24]/20" />
+                <span className="text-sm sm:text-[15px] font-medium leading-none text-[#1C2B24]/80">Transformation &amp; Change</span>
               </button>
-              <div className="flex items-center gap-4 text-sm text-[#1C2B24]/70">
+              <div className="flex items-center gap-4 h-9 text-sm leading-none text-[#1C2B24]/70">
                 <span className="inline-flex items-center gap-1.5 capitalize">
                   <CalendarDays className="w-4 h-4" />
                   {formatDayMonthFR(viewDate)}

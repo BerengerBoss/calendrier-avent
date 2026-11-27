@@ -7,6 +7,7 @@ import { CopilotTargetMode, Visitor } from '../types/advent';
 const PREFIX = 'deloitte_advent_v4';
 const VISITOR_KEY = `${PREFIX}:visitor`;
 const PARALLAX_KEY = `${PREFIX}:parallax`;
+const SHARE_KEY = `${PREFIX}:share`;
 const bookmarksKey = (visitorId: string) => `${PREFIX}:bookmarks:${visitorId}`;
 const openedKey = (visitorId: string) => `${PREFIX}:opened:${visitorId}`;
 const sessionVisitKey = (visitorId: string) => `${PREFIX}:visit:${visitorId}`;
@@ -117,4 +118,32 @@ export function buildCopilotUrl(
     return `https://copilot.microsoft.com/?q=${encoded}`;
   }
   return `https://m365.cloud.microsoft/chat?q=${encoded}`;
+}
+
+/** Share-link token: taken from ?share= in the URL, remembered for later visits. */
+export function loadShareToken(): string | null {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('share');
+    if (fromUrl && /^[A-Za-z0-9_-]{16,128}$/.test(fromUrl)) {
+      localStorage.setItem(SHARE_KEY, fromUrl);
+      return fromUrl;
+    }
+    const stored = localStorage.getItem(SHARE_KEY);
+    return stored && /^[A-Za-z0-9_-]{16,128}$/.test(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearShareToken(): void {
+  removeKey(SHARE_KEY);
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('share')) {
+      url.searchParams.delete('share');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
+  } catch {
+    // ignore
+  }
 }

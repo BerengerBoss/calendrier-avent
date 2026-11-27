@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, Eye, BarChart3, LayoutGrid, CalendarClock, Settings2, LogOut } from 'lucide-react';
+import { X, Eye, BarChart3, LayoutGrid, CalendarClock, Settings2, LogOut, Link2 } from 'lucide-react';
 import { AdminPreview, CalendarSettings, CardRecord } from '../types/advent';
 import { StatsPanel } from './admin/StatsPanel';
 import { CardsPanel } from './admin/CardsPanel';
 import { PreviewPanel } from './admin/PreviewPanel';
 import { SettingsPanel } from './admin/SettingsPanel';
+import { SharePanel } from './admin/SharePanel';
 
 interface BackofficeStudioProps {
   settings: CalendarSettings;
@@ -19,12 +20,13 @@ interface BackofficeStudioProps {
   onSignOut: () => void;
 }
 
-type StudioTab = 'stats' | 'cards' | 'preview' | 'settings';
+type StudioTab = 'stats' | 'cards' | 'preview' | 'share' | 'settings';
 
 const TABS: { id: StudioTab; label: string; icon: React.ReactNode; active: string }[] = [
   { id: 'stats', label: 'Statistiques', icon: <BarChart3 className="w-4 h-4" />, active: 'bg-[#0EA5E9] text-white' },
   { id: 'cards', label: 'Cases', icon: <LayoutGrid className="w-4 h-4" />, active: 'bg-[#86BC25] text-[#0F172A]' },
   { id: 'preview', label: 'Aperçu & date', icon: <CalendarClock className="w-4 h-4" />, active: 'bg-[#FBBF24] text-[#0F172A]' },
+  { id: 'share', label: 'Partage', icon: <Link2 className="w-4 h-4" />, active: 'bg-[#A8201A] text-white' },
   { id: 'settings', label: 'Réglages', icon: <Settings2 className="w-4 h-4" />, active: 'bg-[#0F172A] text-white' },
 ];
 
@@ -137,6 +139,7 @@ export const BackofficeStudio: React.FC<BackofficeStudioProps> = ({
               onShowFront={onClose}
             />
           )}
+          {activeTab === 'share' && <SharePanel onNotify={onNotify} />}
           {activeTab === 'settings' && (
             <SettingsPanel
               settings={settings}

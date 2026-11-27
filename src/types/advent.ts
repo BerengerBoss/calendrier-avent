@@ -164,6 +164,14 @@ export interface AdminPreview {
   unlockAll?: boolean;
 }
 
+export interface ShareLink {
+  token: string;
+  label: string;
+  include_drafts: boolean;
+  created_at: string;
+  revoked_at: string | null;
+}
+
 export type TrackedEventType = 'copilot' | 'copy' | 'resource';
 
 // ---- Admin dashboard payload (RPC admin_dashboard) ----

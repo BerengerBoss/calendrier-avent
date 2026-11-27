@@ -12,6 +12,7 @@ import {
   QuizSlide,
   ResourceLink,
   ResourceType,
+  ShareLink,
   TipCategory,
   TipContent,
   TipMedia,
@@ -263,10 +264,38 @@ export async function fetchMyOpens(visitorId: string): Promise<string[]> {
   return Array.isArray(data) ? data.filter(isISODate) : [];
 }
 
-export async function recordOpen(visitorId: string, cardDate: string): Promise<boolean> {
+/** Thrown when a share link has been closed (or never existed). */
+export class ShareClosedError extends Error {
+  constructor() {
+    super('Ce lien de partage a été fermé.');
+    this.name = 'ShareClosedError';
+  }
+}
+
+/** Every card reachable through a share link (server checks the link is still open). */
+export async function fetchSharedCards(token: string): Promise<CardRecord[]> {
+  const { data, error } = await getSupabase().rpc('get_shared_cards', { p_token: token });
+  if (error) {
+    if (error.message?.includes('share_closed')) throw new ShareClosedError();
+    fail('Lecture des cases partagées impossible', error);
+  }
+  return (Array.isArray(data) ? data : [])
+    .map((row) => normalizeCard(row as Record<string, unknown>))
+    .filter((c): c is CardRecord => c !== null);
+}
+
+/** Only sent when present, so the app keeps working with an older schema. */
+const shareParam = (token?: string | null) => (token ? { p_share_token: token } : {});
+
+export async function recordOpen(
+  visitorId: string,
+  cardDate: string,
+  shareToken?: string | null
+): Promise<boolean> {
   const { data, error } = await getSupabase().rpc('record_open', {
     p_visitor_id: visitorId,
     p_card_date: cardDate,
+    ...shareParam(shareToken),
   });
   if (error) fail('Enregistrement impossible', error);
   return data === true;
@@ -275,13 +304,54 @@ export async function recordOpen(visitorId: string, cardDate: string): Promise<b
 export async function recordEvent(
   visitorId: string,
   type: TrackedEventType,
-  cardDate: string
+  cardDate: string,
+  shareToken?: string | null
 ): Promise<void> {
   await getSupabase().rpc('record_event', {
     p_visitor_id: visitorId,
     p_type: type,
     p_card_date: cardDate,
+    ...shareParam(shareToken),
   });
+}
+
+// ---------------------------------------------------------------------------
+//  Share links (admin)
+// ---------------------------------------------------------------------------
+export async function listShareLinks(): Promise<ShareLink[]> {
+  const { data, error } = await getSupabase()
+    .from('share_links')
+    .select('token, label, include_drafts, created_at, revoked_at')
+    .order('created_at', { ascending: false });
+  if (error) fail('Lecture des liens de partage impossible (schéma SQL à jour ?)', error);
+  return (data ?? []) as ShareLink[];
+}
+
+export async function createShareLink(label: string, includeDrafts: boolean): Promise<ShareLink> {
+  const { data, error } = await getSupabase()
+    .from('share_links')
+    .insert({ label: label.trim().slice(0, 80), include_drafts: includeDrafts })
+    .select('token, label, include_drafts, created_at, revoked_at')
+    .single();
+  if (error || !data) fail('Création du lien impossible', error);
+  return data as ShareLink;
+}
+
+export async function setShareLinkOpen(token: string, open: boolean): Promise<void> {
+  const { error } = await getSupabase()
+    .from('share_links')
+    .update({ revoked_at: open ? null : new Date().toISOString() })
+    .eq('token', token);
+  if (error) fail('Mise à jour du lien impossible', error);
+}
+
+export async function deleteShareLink(token: string): Promise<void> {
+  const { error } = await getSupabase().from('share_links').delete().eq('token', token);
+  if (error) fail('Suppression du lien impossible', error);
+}
+
+export function shareLinkUrl(token: string): string {
+  return `${window.location.origin}${window.location.pathname}?share=${encodeURIComponent(token)}`;
 }
 
 // ---------------------------------------------------------------------------

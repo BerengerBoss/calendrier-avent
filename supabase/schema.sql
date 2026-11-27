@@ -112,6 +112,33 @@ create index if not exists events_card_date_idx on public.events (card_date);
 create index if not exists events_visitor_idx on public.events (visitor_id);
 
 -- ---------------------------------------------------------------------
+--  Liens de partage (accès anticipé à toutes les cases)
+--  Un lien = un jeton secret. Fermer l'accès = renseigner revoked_at :
+--  le serveur refuse alors immédiatement le jeton.
+-- ---------------------------------------------------------------------
+create table if not exists public.share_links (
+  token text primary key
+    default replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
+  label text not null default '',
+  include_drafts boolean not null default false,
+  created_at timestamptz not null default now(),
+  revoked_at timestamptz
+);
+
+-- Jeton valide (existant et non fermé) ?
+create or replace function public.share_link_ok(p_token text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_token is not null and exists (
+    select 1 from share_links where token = p_token and revoked_at is null
+  )
+$$;
+
+-- ---------------------------------------------------------------------
 --  Row Level Security
 -- ---------------------------------------------------------------------
 alter table public.admins   enable row level security;
@@ -119,6 +146,11 @@ alter table public.settings enable row level security;
 alter table public.cards    enable row level security;
 alter table public.visitors enable row level security;
 alter table public.events   enable row level security;
+alter table public.share_links enable row level security;
+
+drop policy if exists share_links_admin_all on public.share_links;
+create policy share_links_admin_all on public.share_links
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists admins_self_read on public.admins;
 create policy admins_self_read on public.admins
@@ -174,6 +206,8 @@ grant update on public.settings to authenticated;
 grant insert, update, delete on public.cards to authenticated;
 grant select, delete on public.visitors, public.events to authenticated;
 grant select on public.admins to authenticated;
+revoke all on public.share_links from anon, authenticated;
+grant select, insert, update, delete on public.share_links to authenticated;
 
 -- ---------------------------------------------------------------------
 --  RPC publiques (participants) — SECURITY DEFINER, entrées contrôlées
@@ -236,8 +270,63 @@ begin
   return json_build_object('first_name', v_row.first_name, 'last_name', v_row.last_name);
 end $$;
 
+-- Anciennes signatures (sans jeton de partage) : supprimées pour éviter toute ambiguïté
+drop function if exists public.record_open(uuid, date);
+drop function if exists public.record_event(uuid, text, date);
+
+-- Une case est-elle accessible ? (publiée et date atteinte, ou via un lien de partage ouvert)
+create or replace function public.card_accessible(p_card_date date, p_share_token text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from cards c
+     where c.publish_date = p_card_date
+       and (
+         (c.status = 'published' and c.publish_date <= paris_today())
+         or exists (
+           select 1 from share_links s
+            where s.token = p_share_token
+              and s.revoked_at is null
+              and (c.status = 'published' or s.include_drafts)
+         )
+       )
+  )
+$$;
+
+-- Toutes les cases visibles via un lien de partage (erreur si le lien est fermé)
+create or replace function public.get_shared_cards(p_token text)
+returns table (publish_date date, status text, content jsonb, updated_at timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_drafts boolean;
+begin
+  select s.include_drafts into v_drafts
+    from share_links s
+   where s.token = p_token and s.revoked_at is null;
+  if not found then
+    raise exception 'share_closed' using errcode = 'P0001';
+  end if;
+  return query
+    select c.publish_date, c.status, c.content, c.updated_at
+      from cards c
+     where c.status = 'published' or v_drafts
+     order by c.publish_date;
+end $$;
+
 -- Enregistre l'ouverture d'une case (1 seule fois par personne et par case)
-create or replace function public.record_open(p_visitor_id uuid, p_card_date date)
+create or replace function public.record_open(
+  p_visitor_id uuid,
+  p_card_date date,
+  p_share_token text default null
+)
 returns boolean
 language plpgsql
 volatile
@@ -248,12 +337,7 @@ begin
   if not exists (select 1 from visitors where id = p_visitor_id) then
     return false;
   end if;
-  if not exists (
-    select 1 from cards
-     where publish_date = p_card_date
-       and status = 'published'
-       and publish_date <= paris_today()
-  ) then
+  if not card_accessible(p_card_date, p_share_token) then
     return false;
   end if;
 
@@ -266,7 +350,12 @@ begin
 end $$;
 
 -- Clics secondaires (copie du prompt, lancement Copilot, ressource)
-create or replace function public.record_event(p_visitor_id uuid, p_type text, p_card_date date)
+create or replace function public.record_event(
+  p_visitor_id uuid,
+  p_type text,
+  p_card_date date,
+  p_share_token text default null
+)
 returns boolean
 language plpgsql
 volatile
@@ -280,12 +369,7 @@ begin
   if not exists (select 1 from visitors where id = p_visitor_id) then
     return false;
   end if;
-  if not exists (
-    select 1 from cards
-     where publish_date = p_card_date
-       and status = 'published'
-       and publish_date <= paris_today()
-  ) then
+  if not card_accessible(p_card_date, p_share_token) then
     return false;
   end if;
 
@@ -407,8 +491,11 @@ end $$;
 -- Droits d'exécution
 revoke all on function public.register_visitor(text, text)      from public;
 revoke all on function public.visitor_session(uuid, boolean)    from public;
-revoke all on function public.record_open(uuid, date)           from public;
-revoke all on function public.record_event(uuid, text, date)    from public;
+revoke all on function public.record_open(uuid, date, text)     from public;
+revoke all on function public.record_event(uuid, text, date, text) from public;
+revoke all on function public.card_accessible(date, text)       from public;
+revoke all on function public.get_shared_cards(text)            from public;
+revoke all on function public.share_link_ok(text)               from public;
 revoke all on function public.get_my_opens(uuid)                from public;
 revoke all on function public.admin_dashboard()                 from public;
 revoke all on function public.admin_reset_stats()               from public;
@@ -418,8 +505,10 @@ grant execute on function public.paris_today()                    to anon, authe
 grant execute on function public.is_admin()                       to anon, authenticated;
 grant execute on function public.register_visitor(text, text)     to anon, authenticated;
 grant execute on function public.visitor_session(uuid, boolean)   to anon, authenticated;
-grant execute on function public.record_open(uuid, date)          to anon, authenticated;
-grant execute on function public.record_event(uuid, text, date)   to anon, authenticated;
+grant execute on function public.record_open(uuid, date, text)    to anon, authenticated;
+grant execute on function public.record_event(uuid, text, date, text) to anon, authenticated;
+grant execute on function public.get_shared_cards(text)           to anon, authenticated;
+grant execute on function public.share_link_ok(text)              to anon, authenticated;
 grant execute on function public.get_my_opens(uuid)               to anon, authenticated;
 grant execute on function public.admin_dashboard()                to authenticated;
 grant execute on function public.admin_reset_stats()              to authenticated;
