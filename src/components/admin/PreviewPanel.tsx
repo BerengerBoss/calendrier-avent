@@ -55,15 +55,15 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           Date du serveur : <strong>{formatLongFR(realToday)}</strong> (heure de Paris)
         </p>
         <div className="grid grid-cols-3 gap-3 mt-3 text-center">
-          <div className="rounded-xl bg-[#ECFCCB] border-2 border-[#0F172A] p-3">
+          <div className="rounded-xl bg-[#ECFCCB] border border-[#1C2B24]/15 p-3">
             <div className="font-display text-2xl font-bold">{liveNow.length}</div>
             <div className="text-[11px] font-bold text-[#3F6212]">cases visibles</div>
           </div>
-          <div className="rounded-xl bg-[#E0F2FE] border-2 border-[#0F172A] p-3">
+          <div className="rounded-xl bg-[#E0F2FE] border border-[#1C2B24]/15 p-3">
             <div className="font-display text-2xl font-bold">{scheduled.length}</div>
             <div className="text-[11px] font-bold text-[#0369A1]">publiées à venir</div>
           </div>
-          <div className="rounded-xl bg-[#FEF3C7] border-2 border-[#0F172A] p-3">
+          <div className="rounded-xl bg-[#FEF3C7] border border-[#1C2B24]/15 p-3">
             <div className="font-display text-2xl font-bold">{drafts.length}</div>
             <div className="text-[11px] font-bold text-[#B45309]">brouillons</div>
           </div>
@@ -97,7 +97,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="px-3 py-2 rounded-xl border-2 border-[#0F172A] text-sm font-bold"
+              className="px-3 py-2 rounded-xl border border-[#1C2B24]/15 text-sm font-bold"
             />
           </div>
           <label className="inline-flex items-center gap-2 text-xs font-bold cursor-pointer pb-2">
@@ -156,10 +156,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                     setDate(d);
                     apply(d, includeDrafts);
                   }}
-                  className={`px-2.5 py-1 rounded-lg border-2 text-[11px] font-bold cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer ${
                     preview?.date === d
-                      ? 'border-[#0F172A] bg-[#0F172A] text-[#A3E635]'
-                      : 'border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#0F172A]'
+                      ? 'border-[#1C2B24]/15 bg-[#0F172A] text-[#A3E635]'
+                      : 'border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#1C2B24]/15'
                   }`}
                 >
                   {formatShortFR(d)}

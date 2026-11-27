@@ -166,8 +166,8 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
             publiée devient visible automatiquement à sa date (heure de Paris).
           </p>
           <div className="flex flex-wrap gap-3 text-[10px] font-bold mb-3">
-            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#86BC25] border border-[#0F172A]" /> Publiée</span>
-            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#FEF3C7] border border-[#0F172A]" /> Brouillon</span>
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#86BC25] border border-[#1C2B24]/15" /> Publiée</span>
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#FEF3C7] border border-[#1C2B24]/15" /> Brouillon</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-white border border-dashed border-[#94A3B8]" /> Vide</span>
           </div>
           <div className="space-y-3">
@@ -187,11 +187,11 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
                         type="button"
                         onClick={() => selectDate(d)}
                         title={formatDayMonthFR(d)}
-                        className={`py-1.5 rounded-xl border-2 text-center cursor-pointer transition-all ${
+                        className={`py-1.5 rounded-xl border text-center cursor-pointer transition-all ${
                           st === 'published'
-                            ? 'bg-[#86BC25] border-[#0F172A]'
+                            ? 'bg-[#86BC25] border-[#1C2B24]/15'
                             : st === 'draft'
-                            ? 'bg-[#FEF3C7] border-[#0F172A]'
+                            ? 'bg-[#FEF3C7] border-[#1C2B24]/15'
                             : 'bg-white border-dashed border-[#94A3B8]'
                         } ${isSel ? 'ring-2 ring-offset-2 ring-[#0EA5E9]' : ''}`}
                       >
@@ -277,7 +277,7 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
                 <p className="text-xs text-[#64748B]">Elle sera créée en brouillon : rien n&apos;est visible tant que vous ne publiez pas.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
-                <div className="p-4 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] space-y-2">
+                <div className="p-4 rounded-2xl border border-[#1C2B24]/15 bg-[#F8FAFC] space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold">
                     <FileText className="w-4 h-4" /> Dupliquer une case existante
                   </div>
@@ -290,7 +290,7 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
                       <select
                         value={sourceDate}
                         onChange={(e) => setSourceDate(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded-xl border-2 border-[#0F172A] text-xs font-medium bg-white"
+                        className="w-full px-2 py-1.5 rounded-xl border border-[#1C2B24]/15 text-xs font-medium bg-white"
                       >
                         <option value="">— Choisir une case —</option>
                         {duplicableCards.map((c) => (
@@ -313,7 +313,7 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
                     </>
                   )}
                 </div>
-                <div className="p-4 rounded-2xl border-2 border-[#0F172A] bg-[#F8FAFC] flex flex-col justify-between gap-2">
+                <div className="p-4 rounded-2xl border border-[#1C2B24]/15 bg-[#F8FAFC] flex flex-col justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold">
                     <Plus className="w-4 h-4" /> Case vierge
                   </div>
@@ -339,7 +339,7 @@ export const CardsPanel: React.FC<CardsPanelProps> = ({
               />
 
               {/* Action bar */}
-              <div className="sticky bottom-0 -mx-5 -mb-5 px-5 py-3 bg-white/95 backdrop-blur border-t-2 border-[#0F172A] rounded-b-2xl flex flex-wrap items-center justify-between gap-2">
+              <div className="sticky bottom-0 -mx-5 -mb-5 px-5 py-3 bg-white/95 backdrop-blur border-t-2 border-[#1C2B24]/15 rounded-b-2xl flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-2">
                   {!draft.isNew && (
                     <button

@@ -66,12 +66,12 @@ export const BackofficeStudio: React.FC<BackofficeStudioProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-[#0F172A]/80 backdrop-blur-sm">
-      <div className="animate-pop-in w-full max-w-6xl h-[94vh] rounded-3xl bg-[#FAF9F5] border-[3px] border-[#0F172A] shadow-[10px_10px_0px_#0F172A] flex flex-col overflow-hidden">
+      <div className="animate-pop-in w-full max-w-6xl h-[94vh] rounded-3xl bg-[#FAF9F5] border-[3px] border-[#1C2B24]/15 shadow-sm flex flex-col overflow-hidden">
         <div className="px-5 py-4 bg-[#0F172A] text-white flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#86BC25] border-2 border-white flex items-center justify-center text-xl">🛠️</div>
+            <div className="w-10 h-10 rounded-xl bg-[#86BC25] border border-white flex items-center justify-center text-xl">🛠️</div>
             <div>
-              <h2 className="font-display text-xl font-bold tracking-wide">Studio Admin • Calendrier</h2>
+              <h2 className="font-display text-xl font-semibold tracking-wide">Studio Admin • Calendrier</h2>
               <p className="text-xs text-[#94A3B8]">
                 Connecté{adminEmail ? ` : ${adminEmail}` : ''} • les modifications publiées sont visibles en direct (≤ 1 min).
               </p>
@@ -82,14 +82,14 @@ export const BackofficeStudio: React.FC<BackofficeStudioProps> = ({
               type="button"
               onClick={onSignOut}
               title="Se déconnecter"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white border-2 border-white/20 font-bold text-xs hover:bg-white/20 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white border border-white/20 font-bold text-xs hover:bg-white/20 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={handleClose}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FAF9F5] text-[#0F172A] border-2 border-[#0F172A] font-bold text-xs hover:bg-[#86BC25] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FAF9F5] text-[#0F172A] border border-[#1C2B24]/15 font-bold text-xs hover:bg-[#86BC25] transition-colors cursor-pointer"
             >
               <Eye className="w-4 h-4" />
               Retour au calendrier
@@ -98,7 +98,7 @@ export const BackofficeStudio: React.FC<BackofficeStudioProps> = ({
           </div>
         </div>
 
-        <div className="px-5 py-3 bg-white border-b-2 border-[#0F172A] flex flex-wrap gap-2">
+        <div className="px-5 py-3 bg-white border-b-2 border-[#1C2B24]/15 flex flex-wrap gap-2">
           {TABS.map((t) => (
             <button
               key={t.id}

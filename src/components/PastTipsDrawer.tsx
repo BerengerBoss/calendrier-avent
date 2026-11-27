@@ -91,7 +91,7 @@ export const PastTipsDrawer: React.FC<PastTipsDrawerProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher un tip débloqué, un agent, une équipe..."
-              className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-[#1E293B] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-[#1E293B] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
             />
           </div>
 
@@ -102,7 +102,7 @@ export const PastTipsDrawer: React.FC<PastTipsDrawerProps> = ({
                   key={cat}
                   type="button"
                   onClick={() => setFilterCat(cat)}
-                  className={`px-2.5 py-1 rounded-lg border-2 border-[#1E293B] text-xs font-bold cursor-pointer transition-colors ${
+                  className={`px-2.5 py-1 rounded-lg border border-[#1E293B] text-xs font-bold cursor-pointer transition-colors ${
                     filterCat === cat
                       ? 'bg-[#1E293B] text-white'
                       : 'bg-[#F8FAFC] text-[#1E293B] hover:bg-[#E2E8F0]'
@@ -145,12 +145,12 @@ export const PastTipsDrawer: React.FC<PastTipsDrawerProps> = ({
                     onClose();
                     onSelectTip(tip);
                   }}
-                  className={`w-full text-left p-3.5 rounded-2xl border-[2.5px] border-[#1E293B] shadow-[3px_3px_0px_#1E293B] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[5px_5px_0px_#1E293B] transition-all cursor-pointer flex items-start gap-3 ${
+                  className={`w-full text-left p-3.5 rounded-2xl border border-[#1E293B] shadow-sm hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-sm transition-all cursor-pointer flex items-start gap-3 ${
                     isOpened ? 'bg-white' : 'bg-[#FFF1F2]'
                   }`}
                 >
                   <div
-                    className={`w-11 h-11 shrink-0 rounded-xl border-2 border-[#1E293B] flex items-center justify-center font-display font-bold text-lg ${
+                    className={`w-11 h-11 shrink-0 rounded-xl border border-[#1E293B] flex items-center justify-center font-display font-bold text-lg ${
                       isOpened ? 'bg-[#86BC25] text-white' : 'bg-[#FFE4E6] text-[#E11D48]'
                     }`}
                   >

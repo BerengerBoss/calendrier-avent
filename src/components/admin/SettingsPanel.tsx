@@ -15,7 +15,7 @@ interface SettingsPanelProps {
 }
 
 const inputCls =
-  'w-full px-3 py-2 rounded-xl border-2 border-[#0F172A] text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#86BC25]';
+  'w-full px-3 py-2 rounded-xl border border-[#1C2B24]/15 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#86BC25]';
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   settings,

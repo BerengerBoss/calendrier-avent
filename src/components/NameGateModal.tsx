@@ -38,9 +38,9 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
-      <div className="animate-pop-in w-full max-w-md rounded-3xl bg-[#FFFDF7] border-[3px] border-[#0F172A] shadow-[10px_10px_0px_#0F172A] p-6 sm:p-7">
+      <div className="animate-pop-in w-full max-w-md rounded-3xl bg-[#FFFDF7] border-[3px] border-[#1C2B24]/15 shadow-sm p-6 sm:p-7">
         <div className="text-center mb-5">
-          <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#86BC25] to-[#5D8A16] border-[2.5px] border-[#0F172A] shadow-[4px_4px_0px_#0F172A] flex items-center justify-center text-white">
+          <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#86BC25] to-[#5D8A16] border border-[#1C2B24]/15 shadow-sm flex items-center justify-center text-white">
             <Gift className="w-8 h-8" />
           </div>
           <h2 className="font-display text-2xl font-bold text-[#0F172A]">Bienvenue ! 🎄</h2>
@@ -64,7 +64,7 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
               maxLength={60}
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border-[2.5px] border-[#0F172A] bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
+              className="w-full px-4 py-2.5 rounded-xl border border-[#1C2B24]/15 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
             />
           </div>
           <div>
@@ -78,7 +78,7 @@ export const NameGateModal: React.FC<NameGateModalProps> = ({ calendarTitle, onS
               maxLength={60}
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border-[2.5px] border-[#0F172A] bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
+              className="w-full px-4 py-2.5 rounded-xl border border-[#1C2B24]/15 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
             />
           </div>
 

@@ -41,7 +41,7 @@ export const BackofficeAuthModal: React.FC<BackofficeAuthModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-pop-in w-full max-w-md rounded-3xl bg-[#FFFDF7] border-[3.5px] border-[#1E293B] shadow-[10px_10px_0px_#1E293B] p-6"
+        className="animate-pop-in w-full max-w-md rounded-3xl bg-[#FFFDF7] border-[3.5px] border-[#1E293B] shadow-sm p-6"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-[#1E293B] text-[#A3E635] text-xs font-bold">
@@ -59,7 +59,7 @@ export const BackofficeAuthModal: React.FC<BackofficeAuthModalProps> = ({
         </div>
 
         <div className="text-center mb-5">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[#FEF3C7] border-[2.5px] border-[#1E293B] shadow-[3px_3px_0px_#1E293B] flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[#FEF3C7] border border-[#1E293B] shadow-sm flex items-center justify-center">
             <Lock className="w-7 h-7 text-[#1E293B]" />
           </div>
           <h2 className="font-display text-2xl font-bold text-[#1E293B]">
@@ -85,7 +85,7 @@ export const BackofficeAuthModal: React.FC<BackofficeAuthModalProps> = ({
                 setEmail(e.target.value);
                 if (error) setError(null);
               }}
-              className="w-full px-4 py-2.5 rounded-xl border-[2.5px] border-[#1E293B] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
+              className="w-full px-4 py-2.5 rounded-xl border border-[#1E293B] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#86BC25]"
             />
           </div>
           <div>
@@ -102,7 +102,7 @@ export const BackofficeAuthModal: React.FC<BackofficeAuthModalProps> = ({
                   setPassword(e.target.value);
                   if (error) setError(null);
                 }}
-                className={`w-full pr-11 pl-4 py-2.5 rounded-xl border-[2.5px] font-mono text-sm focus:outline-none ${
+                className={`w-full pr-11 pl-4 py-2.5 rounded-xl border font-mono text-sm focus:outline-none ${
                   error
                     ? 'border-[#E11D48] bg-[#FFF1F2] animate-wiggle'
                     : 'border-[#1E293B] bg-white focus:ring-2 focus:ring-[#86BC25]'

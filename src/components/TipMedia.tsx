@@ -49,7 +49,7 @@ export const TipMedia: React.FC<TipMediaProps> = ({ media, accentHex, fallbackEm
   const [thumbFailed, setThumbFailed] = useState(false);
 
   const frame =
-    'relative w-full overflow-hidden rounded-2xl border-[2.5px] border-[#0F172A] shadow-[4px_4px_0px_#0F172A] bg-[#0F172A]';
+    'relative w-full overflow-hidden rounded-2xl border border-[#1C2B24]/15 shadow-sm bg-[#0F172A]';
 
   const caption = (media.title || media.caption) && (
     <div className="flex flex-wrap items-baseline justify-between gap-2 px-1 pt-2">
@@ -117,7 +117,7 @@ export const TipMedia: React.FC<TipMediaProps> = ({ media, accentHex, fallbackEm
                   </span>
                 </span>
               </span>
-              <span className="absolute left-3 bottom-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white text-[#0F172A] text-[11px] font-bold border-2 border-[#0F172A]">
+              <span className="absolute left-3 bottom-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white text-[#0F172A] text-[11px] font-bold border border-[#1C2B24]/15">
                 ▶ Lire ici, sans quitter le calendrier
               </span>
             </button>
@@ -153,7 +153,7 @@ export const TipMedia: React.FC<TipMediaProps> = ({ media, accentHex, fallbackEm
               style={{ background: `radial-gradient(circle at 30% 20%, ${accentHex}, #0F172A 70%)` }}
             >
               <span className="text-6xl animate-float">{fallbackEmoji}</span>
-              <span className="relative w-16 h-16 rounded-full bg-white/95 border-[3px] border-[#0F172A] flex items-center justify-center transition-transform group-hover:scale-110">
+              <span className="relative w-16 h-16 rounded-full bg-white/95 border-[3px] border-[#1C2B24]/15 flex items-center justify-center transition-transform group-hover:scale-110">
                 <Play className="w-7 h-7 text-[#0F172A] fill-[#0F172A] ml-1" />
               </span>
               <span className="text-xs font-bold tracking-wide uppercase opacity-90">
@@ -199,7 +199,7 @@ export const TipMedia: React.FC<TipMediaProps> = ({ media, accentHex, fallbackEm
         className={`${frame} p-5 sm:p-6 flex items-center gap-4 sm:gap-5 transition-transform group-hover:-translate-y-0.5`}
         style={{ background: `linear-gradient(120deg, #0F172A 0%, #1E293B 55%, ${accentHex} 140%)` }}
       >
-        <span className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 border-2 border-white/30 flex items-center justify-center text-4xl sm:text-5xl animate-float">
+        <span className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 border border-white/30 flex items-center justify-center text-4xl sm:text-5xl animate-float">
           {fallbackEmoji}
         </span>
         <div className="min-w-0 flex-1 text-white">
@@ -211,7 +211,7 @@ export const TipMedia: React.FC<TipMediaProps> = ({ media, accentHex, fallbackEm
           <div className="font-display text-lg sm:text-xl font-bold leading-tight">
             {media.title || 'Voir le contenu'}
           </div>
-          <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#0F172A] text-xs font-bold border-2 border-[#0F172A] group-hover:bg-[#A3E635] transition-colors">
+          <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#0F172A] text-xs font-bold border border-[#1C2B24]/15 group-hover:bg-[#A3E635] transition-colors">
             {media.ctaLabel || 'Regarder'}
             <ExternalLink className="w-3.5 h-3.5" />
           </span>
