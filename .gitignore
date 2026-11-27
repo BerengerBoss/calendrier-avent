@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+
+# Contenu des futures cases : ne JAMAIS publier sur GitHub (dépôt potentiellement public).
+# Les cases vivent dans Supabase ; sauvegarde via Studio admin > Réglages > Exporter JSON.
+private/
+src/data/defaultTips.ts
+advent-calendar-html/

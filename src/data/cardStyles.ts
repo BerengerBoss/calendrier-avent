@@ -1,0 +1,188 @@
+import { CardStyleId, CardStylePreset, ResourceType, TipCategory } from '../types/advent';
+
+export const CARD_STYLES: Record<CardStyleId, CardStylePreset> = {
+  'deloitte-emerald': {
+    id: 'deloitte-emerald',
+    name: 'Sapin Deloitte',
+    description: 'Vert signature chaleureux',
+    bgClass: 'bg-gradient-to-br from-[#86BC25] to-[#5D8A16]',
+    edgeColor: '#3F6212',
+    foilColors: ['#86BC25', '#65A30D', '#A3E635'],
+    foilPattern: 'circuit',
+    badgeBg: 'bg-[#0F172A]',
+    badgeText: 'text-[#ECFCCB]',
+    numberColor: 'text-white',
+    accentHex: '#86BC25',
+  },
+  'holo-cyber': {
+    id: 'holo-cyber',
+    name: 'Bleu Atelier',
+    description: 'Bleu cobalt & indigo doux',
+    bgClass: 'bg-gradient-to-br from-[#0284C7] to-[#3730A3]',
+    edgeColor: '#1E1B4B',
+    foilColors: ['#0284C7', '#4F46E5', '#38BDF8'],
+    foilPattern: 'stars',
+    badgeBg: 'bg-white',
+    badgeText: 'text-[#0F172A]',
+    numberColor: 'text-white',
+    accentHex: '#0284C7',
+  },
+  'golden-ticket': {
+    id: 'golden-ticket',
+    name: 'Papier Doré',
+    description: 'Ambre chaud & doré satiné',
+    bgClass: 'bg-gradient-to-br from-[#FBBF24] to-[#D97706]',
+    edgeColor: '#92400E',
+    foilColors: ['#FBBF24', '#F59E0B', '#FDE68A'],
+    foilPattern: 'stars',
+    badgeBg: 'bg-[#0F172A]',
+    badgeText: 'text-[#FDE68A]',
+    numberColor: 'text-[#0F172A]',
+    accentHex: '#F59E0B',
+  },
+  'neon-comic': {
+    id: 'neon-comic',
+    name: 'Houx & Corail',
+    description: 'Rouge corail festif',
+    bgClass: 'bg-gradient-to-br from-[#F43F5E] to-[#BE123C]',
+    edgeColor: '#881337',
+    foilColors: ['#FB7185', '#E11D48', '#FDA4AF'],
+    foilPattern: 'dots',
+    badgeBg: 'bg-[#FAF9F5]',
+    badgeText: 'text-[#9F1239]',
+    numberColor: 'text-white',
+    accentHex: '#E11D48',
+  },
+  'frosty-bot': {
+    id: 'frosty-bot',
+    name: 'Matin d’Hiver',
+    description: 'Bleu givré & papier blanc',
+    bgClass: 'bg-gradient-to-br from-[#E0F2FE] to-[#7DD3FC]',
+    edgeColor: '#0369A1',
+    foilColors: ['#BAE6FD', '#7DD3FC', '#38BDF8'],
+    foilPattern: 'grid',
+    badgeBg: 'bg-[#0369A1]',
+    badgeText: 'text-white',
+    numberColor: 'text-[#0F172A]',
+    accentHex: '#38BDF8',
+  },
+  'sunset-spark': {
+    id: 'sunset-spark',
+    name: 'Cannelle & Prune',
+    description: 'Abricot chaud & prune douce',
+    bgClass: 'bg-gradient-to-br from-[#FB923C] to-[#DB2777]',
+    edgeColor: '#831843',
+    foilColors: ['#FB923C', '#EC4899', '#FDBA74'],
+    foilPattern: 'waves',
+    badgeBg: 'bg-[#0F172A]',
+    badgeText: 'text-[#FED7AA]',
+    numberColor: 'text-white',
+    accentHex: '#FB923C',
+  },
+  'midnight-matrix': {
+    id: 'midnight-matrix',
+    name: 'Nuit d’Ébène',
+    description: 'Ardoise élégante & doré',
+    bgClass: 'bg-gradient-to-br from-[#334155] to-[#0F172A]',
+    edgeColor: '#020617',
+    foilColors: ['#334155', '#1E293B', '#475569'],
+    foilPattern: 'dots',
+    badgeBg: 'bg-[#86BC25]',
+    badgeText: 'text-[#0F172A]',
+    numberColor: 'text-[#FDE68A]',
+    accentHex: '#334155',
+  },
+  'candy-pop': {
+    id: 'candy-pop',
+    name: 'Eucalyptus',
+    description: 'Sauge & menthe douce',
+    bgClass: 'bg-gradient-to-br from-[#2DD4BF] to-[#0F766E]',
+    edgeColor: '#134E4A',
+    foilColors: ['#2DD4BF', '#14B8A6', '#5EEAD4'],
+    foilPattern: 'stripes',
+    badgeBg: 'bg-white',
+    badgeText: 'text-[#0F766E]',
+    numberColor: 'text-[#0F172A]',
+    accentHex: '#14B8A6',
+  },
+};
+
+export const CARD_STYLE_LIST: CardStylePreset[] = Object.values(CARD_STYLES);
+
+export const CATEGORY_META: Record<
+  TipCategory,
+  { label: string; bg: string; text: string; icon: string }
+> = {
+  "Cas d'usage": {
+    label: "Cas d'usage",
+    bg: 'bg-[#E0F2FE]',
+    text: 'text-[#0369A1]',
+    icon: '🧭',
+  },
+  'Tip Prompt': {
+    label: 'Astuce Rédaction',
+    bg: 'bg-[#FEF3C7]',
+    text: 'text-[#B45309]',
+    icon: '✍️',
+  },
+  'Agent Partagé': {
+    label: 'Assistant Copilot',
+    bg: 'bg-[#EDE9FE]',
+    text: 'text-[#6D28D9]',
+    icon: '🤝',
+  },
+  'News IA': {
+    label: 'Actu & Culture IA',
+    bg: 'bg-[#ECFCCB]',
+    text: 'text-[#3F6212]',
+    icon: '📰',
+  },
+  Ressource: {
+    label: 'Ressource',
+    bg: 'bg-[#FFE4E6]',
+    text: 'text-[#BE123C]',
+    icon: '📚',
+  },
+  Challenge: {
+    label: 'Challenge',
+    bg: 'bg-[#FEF9C3]',
+    text: 'text-[#A16207]',
+    icon: '🏆',
+  },
+};
+
+export const RESOURCE_TYPE_META: Record<
+  ResourceType,
+  { label: string; badgeClass: string; icon: string }
+> = {
+  article: {
+    label: 'Article',
+    badgeClass: 'bg-[#E0F2FE] text-[#0369A1]',
+    icon: '📄',
+  },
+  guide: {
+    label: 'Guide',
+    badgeClass: 'bg-[#ECFCCB] text-[#3F6212]',
+    icon: '📘',
+  },
+  agent: {
+    label: 'Assistant',
+    badgeClass: 'bg-[#EDE9FE] text-[#6D28D9]',
+    icon: '🤝',
+  },
+  video: {
+    label: 'Vidéo',
+    badgeClass: 'bg-[#FFE4E6] text-[#BE123C]',
+    icon: '🎬',
+  },
+  outil: {
+    label: 'Outil',
+    badgeClass: 'bg-[#FEF3C7] text-[#B45309]',
+    icon: '🧰',
+  },
+  podcast: {
+    label: 'Podcast',
+    badgeClass: 'bg-[#F3E8FF] text-[#7E22CE]',
+    icon: '🎧',
+  },
+};
