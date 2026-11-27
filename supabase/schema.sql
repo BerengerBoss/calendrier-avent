@@ -111,6 +111,17 @@ create index if not exists events_created_at_idx on public.events (created_at);
 create index if not exists events_card_date_idx on public.events (card_date);
 create index if not exists events_visitor_idx on public.events (visitor_id);
 
+-- Réponses aux quiz : seule la PREMIÈRE réponse à chaque question compte
+-- (rejouer un quiz ne change pas le score cumulé).
+create table if not exists public.quiz_answers (
+  visitor_id uuid not null references public.visitors (id) on delete cascade,
+  card_date date not null,
+  question_index int not null check (question_index between 0 and 49),
+  correct boolean not null,
+  created_at timestamptz not null default now(),
+  primary key (visitor_id, card_date, question_index)
+);
+
 -- ---------------------------------------------------------------------
 --  Liens de partage (accès anticipé à toutes les cases)
 --  Un lien = un jeton secret. Fermer l'accès = renseigner revoked_at :
@@ -147,6 +158,11 @@ alter table public.cards    enable row level security;
 alter table public.visitors enable row level security;
 alter table public.events   enable row level security;
 alter table public.share_links enable row level security;
+alter table public.quiz_answers enable row level security;
+
+drop policy if exists quiz_answers_admin_read on public.quiz_answers;
+create policy quiz_answers_admin_read on public.quiz_answers
+  for select to authenticated using (public.is_admin());
 
 drop policy if exists share_links_admin_all on public.share_links;
 create policy share_links_admin_all on public.share_links
@@ -208,6 +224,8 @@ grant select, delete on public.visitors, public.events to authenticated;
 grant select on public.admins to authenticated;
 revoke all on public.share_links from anon, authenticated;
 grant select, insert, update, delete on public.share_links to authenticated;
+revoke all on public.quiz_answers from anon, authenticated;
+grant select on public.quiz_answers to authenticated;
 
 -- ---------------------------------------------------------------------
 --  RPC publiques (participants) — SECURITY DEFINER, entrées contrôlées
@@ -377,6 +395,70 @@ begin
   return true;
 end $$;
 
+-- Réponse à une question de quiz. La justesse est calculée ICI à partir du
+-- contenu de la case (le navigateur envoie seulement l'option choisie).
+-- Renvoie {recorded, correct} ; recorded = false si déjà répondu ou case inaccessible.
+create or replace function public.record_quiz_answer(
+  p_visitor_id uuid,
+  p_card_date date,
+  p_question_index int,
+  p_option_index int,
+  p_share_token text default null
+)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  v_q jsonb;
+  v_correct boolean;
+  v_inserted int;
+begin
+  if not exists (select 1 from visitors where id = p_visitor_id) then
+    return json_build_object('recorded', false);
+  end if;
+  if not card_accessible(p_card_date, p_share_token) then
+    return json_build_object('recorded', false);
+  end if;
+
+  select c.content -> 'quiz' -> 'questions' -> p_question_index into v_q
+    from cards c where c.publish_date = p_card_date;
+  if v_q is null or jsonb_typeof(v_q) <> 'object' then
+    return json_build_object('recorded', false);
+  end if;
+
+  if v_q ->> 'kind' = 'true-false' then
+    -- options : 0 = Vrai, 1 = Faux ; « answer » absent = Vrai
+    v_correct := (coalesce(v_q -> 'answer', 'true'::jsonb) <> 'false'::jsonb) = (p_option_index = 0);
+  else
+    v_correct := coalesce(v_q -> 'options' -> p_option_index -> 'correct', 'false'::jsonb) = 'true'::jsonb;
+  end if;
+
+  insert into quiz_answers (visitor_id, card_date, question_index, correct)
+  values (p_visitor_id, p_card_date, p_question_index, v_correct)
+  on conflict do nothing;
+  get diagnostics v_inserted = row_count;
+
+  return json_build_object('recorded', v_inserted > 0, 'correct', v_correct);
+end $$;
+
+-- Toutes les réponses de quiz du participant (pour le score cumulé)
+create or replace function public.get_my_quiz_answers(p_visitor_id uuid)
+returns json
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(json_agg(json_build_object(
+           'card_date', card_date, 'question_index', question_index, 'correct', correct)
+           order by card_date, question_index), '[]'::json)
+    from quiz_answers
+   where visitor_id = p_visitor_id
+$$;
+
 -- Cases déjà ouvertes par le participant
 create or replace function public.get_my_opens(p_visitor_id uuid)
 returns date[]
@@ -496,6 +578,8 @@ revoke all on function public.record_event(uuid, text, date, text) from public;
 revoke all on function public.card_accessible(date, text)       from public;
 revoke all on function public.get_shared_cards(text)            from public;
 revoke all on function public.share_link_ok(text)               from public;
+revoke all on function public.record_quiz_answer(uuid, date, int, int, text) from public;
+revoke all on function public.get_my_quiz_answers(uuid)         from public;
 revoke all on function public.get_my_opens(uuid)                from public;
 revoke all on function public.admin_dashboard()                 from public;
 revoke all on function public.admin_reset_stats()               from public;
@@ -509,6 +593,8 @@ grant execute on function public.record_open(uuid, date, text)    to anon, authe
 grant execute on function public.record_event(uuid, text, date, text) to anon, authenticated;
 grant execute on function public.get_shared_cards(text)           to anon, authenticated;
 grant execute on function public.share_link_ok(text)              to anon, authenticated;
+grant execute on function public.record_quiz_answer(uuid, date, int, int, text) to anon, authenticated;
+grant execute on function public.get_my_quiz_answers(uuid)        to anon, authenticated;
 grant execute on function public.get_my_opens(uuid)               to anon, authenticated;
 grant execute on function public.admin_dashboard()                to authenticated;
 grant execute on function public.admin_reset_stats()              to authenticated;

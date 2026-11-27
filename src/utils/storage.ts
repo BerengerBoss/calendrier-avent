@@ -10,6 +10,7 @@ const PARALLAX_KEY = `${PREFIX}:parallax`;
 const SHARE_KEY = `${PREFIX}:share`;
 const bookmarksKey = (visitorId: string) => `${PREFIX}:bookmarks:${visitorId}`;
 const openedKey = (visitorId: string) => `${PREFIX}:opened:${visitorId}`;
+const quizKey = (visitorId: string) => `${PREFIX}:quiz:${visitorId}`;
 const sessionVisitKey = (visitorId: string) => `${PREFIX}:visit:${visitorId}`;
 
 function readJSON<T>(key: string, fallback: T, storage: Storage = localStorage): T {
@@ -146,4 +147,32 @@ export function clearShareToken(): void {
   } catch {
     // ignore
   }
+}
+
+/** One entry per answered question, key "YYYY-MM-DD#questionIndex". */
+export interface LocalQuizAnswer {
+  correct: boolean;
+  option: number;
+  /** true once the server has stored it */
+  synced?: boolean;
+}
+export type QuizAnswerMap = Record<string, LocalQuizAnswer>;
+
+export const quizAnswerKey = (date: string, questionIndex: number) => `${date}#${questionIndex}`;
+
+export function loadLocalQuiz(visitorId: string): QuizAnswerMap {
+  const v = readJSON<unknown>(quizKey(visitorId), {});
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const out: QuizAnswerMap = {};
+  for (const [k, raw] of Object.entries(v as Record<string, unknown>)) {
+    const a = raw as Partial<LocalQuizAnswer> | null;
+    if (/^\d{4}-\d{2}-\d{2}#\d+$/.test(k) && a && typeof a.correct === 'boolean' && Number.isInteger(a.option)) {
+      out[k] = { correct: a.correct, option: a.option as number, synced: a.synced === true };
+    }
+  }
+  return out;
+}
+
+export function saveLocalQuiz(visitorId: string, answers: QuizAnswerMap): void {
+  writeJSON(quizKey(visitorId), answers);
 }

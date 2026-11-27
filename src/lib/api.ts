@@ -316,6 +316,54 @@ export async function recordEvent(
 }
 
 // ---------------------------------------------------------------------------
+//  Quiz (cumulative score)
+// ---------------------------------------------------------------------------
+export interface QuizAnswerRecord {
+  card_date: string;
+  question_index: number;
+  correct: boolean;
+}
+
+/** Records the FIRST answer to a question. The server decides if it is correct. */
+export async function recordQuizAnswer(
+  visitorId: string,
+  cardDate: string,
+  questionIndex: number,
+  optionIndex: number,
+  shareToken?: string | null
+): Promise<{ recorded: boolean; correct?: boolean }> {
+  const { data, error } = await getSupabase().rpc('record_quiz_answer', {
+    p_visitor_id: visitorId,
+    p_card_date: cardDate,
+    p_question_index: questionIndex,
+    p_option_index: optionIndex,
+    ...shareParam(shareToken),
+  });
+  if (error) fail('Enregistrement de la réponse impossible', error);
+  const d = obj(data);
+  return {
+    recorded: d?.recorded === true,
+    correct: typeof d?.correct === 'boolean' ? d.correct : undefined,
+  };
+}
+
+export async function fetchMyQuizAnswers(visitorId: string): Promise<QuizAnswerRecord[]> {
+  const { data, error } = await getSupabase().rpc('get_my_quiz_answers', { p_visitor_id: visitorId });
+  if (error) fail('Lecture de votre score impossible', error);
+  return (Array.isArray(data) ? data : [])
+    .map((r) => obj(r))
+    .filter(
+      (r): r is Record<string, unknown> =>
+        !!r && isISODate(r.card_date) && Number.isInteger(r.question_index) && typeof r.correct === 'boolean'
+    )
+    .map((r) => ({
+      card_date: r.card_date as string,
+      question_index: r.question_index as number,
+      correct: r.correct as boolean,
+    }));
+}
+
+// ---------------------------------------------------------------------------
 //  Share links (admin)
 // ---------------------------------------------------------------------------
 export async function listShareLinks(): Promise<ShareLink[]> {

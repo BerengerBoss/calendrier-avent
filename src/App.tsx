@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Eye,
   UserRound,
+  Trophy,
 } from 'lucide-react';
 import {
   AdminPreview,
@@ -30,6 +31,8 @@ import {
   fetchServerToday,
   fetchSettings,
   fetchSharedCards,
+  fetchMyQuizAnswers,
+  recordQuizAnswer,
   recordEvent,
   recordOpen,
   registerVisitor,
@@ -44,6 +47,10 @@ import {
   loadLocalOpened,
   loadParallax,
   loadShareToken,
+  loadLocalQuiz,
+  quizAnswerKey,
+  saveLocalQuiz,
+  QuizAnswerMap,
   loadVisitor,
   markSessionVisited,
   saveBookmarks,
@@ -132,6 +139,9 @@ function CalendarApp() {
   const [visitorReady, setVisitorReady] = useState(false);
   const [openedDates, setOpenedDates] = useState<string[]>([]);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
+  // Quiz answers (first answer per question counts) => cumulative score
+  const [quizAnswers, setQuizAnswers] = useState<QuizAnswerMap>({});
+  const [previewQuiz, setPreviewQuiz] = useState<QuizAnswerMap>({});
   const [parallaxEnabled, setParallaxEnabled] = useState<boolean>(() => loadParallax());
 
   // ---- Admin ----
@@ -284,16 +294,47 @@ function CalendarApp() {
     };
   }, []);
 
+  const syncQuiz = useCallback(async (v: Visitor) => {
+    const local = loadLocalQuiz(v.id);
+    try {
+      const server = await fetchMyQuizAnswers(v.id);
+      const merged: QuizAnswerMap = { ...local };
+      for (const r of server) {
+        const k = quizAnswerKey(r.card_date, r.question_index);
+        merged[k] = { correct: r.correct, option: local[k]?.option ?? -1, synced: true };
+      }
+      // Answers given offline: send them now
+      for (const [k, a] of Object.entries(merged)) {
+        if (a.synced || a.option < 0) continue;
+        const [date, qi] = k.split('#');
+        try {
+          const res = await recordQuizAnswer(v.id, date, Number(qi), a.option, shareTokenRef.current);
+          if (res.recorded) merged[k] = { ...a, correct: res.correct ?? a.correct, synced: true };
+        } catch {
+          // still offline, retry later
+        }
+      }
+      if (visitorRef.current?.id !== v.id) return;
+      saveLocalQuiz(v.id, merged);
+      setQuizAnswers(merged);
+    } catch {
+      if (visitorRef.current?.id === v.id) setQuizAnswers(local);
+    }
+  }, []);
+
   useEffect(() => {
     if (!visitor) {
       setOpenedDates([]);
       setBookmarks([]);
+      setQuizAnswers({});
       return;
     }
     setOpenedDates(uniqSorted(loadLocalOpened(visitor.id)));
     setBookmarks(loadBookmarks(visitor.id));
+    setQuizAnswers(loadLocalQuiz(visitor.id));
     void syncOpens(visitor);
-  }, [visitor, syncOpens]);
+    void syncQuiz(visitor);
+  }, [visitor, syncOpens, syncQuiz]);
 
   const handleRegister = async (firstName: string, lastName: string) => {
     const id = await registerVisitor(firstName, lastName);
@@ -349,7 +390,10 @@ function CalendarApp() {
 
   const setPreview = useCallback((next: AdminPreview | null) => {
     setPreviewState(next);
-    if (!next) setPreviewOpened([]);
+    if (!next) {
+      setPreviewOpened([]);
+      setPreviewQuiz({});
+    }
   }, []);
 
   const openAdmin = useCallback(() => {
@@ -565,6 +609,48 @@ function CalendarApp() {
     showToast(`✨ Case du ${formatDayMonthFR(tip.date)} révélée !`);
   };
 
+  const activeQuiz = previewActive ? previewQuiz : quizAnswers;
+  const quizScore = useMemo(() => {
+    const all = Object.values(activeQuiz);
+    return { correct: all.filter((a) => a.correct).length, total: all.length };
+  }, [activeQuiz]);
+
+  /** First answer to a question of the open card: adds to the cumulative score. */
+  const handleQuizAnswer = (questionIndex: number, optionIndex: number, correct: boolean) => {
+    if (!selectedTip || selectedTip.placeholder) return;
+    const date = selectedTip.date;
+    const key = quizAnswerKey(date, questionIndex);
+    if (activeQuiz[key]) return; // already answered: replays don't count
+
+    if (previewActive) {
+      setPreviewQuiz((prev) => ({ ...prev, [key]: { correct, option: optionIndex } }));
+      return;
+    }
+    const v = visitor;
+    setQuizAnswers((prev) => {
+      if (prev[key]) return prev;
+      const next = { ...prev, [key]: { correct, option: optionIndex } };
+      if (v) saveLocalQuiz(v.id, next);
+      return next;
+    });
+    if (!v) return;
+    recordQuizAnswer(v.id, date, questionIndex, optionIndex, shareActive ? shareToken : null)
+      .then((res) => {
+        if (!res.recorded || visitorRef.current?.id !== v.id) return;
+        setQuizAnswers((prev) => {
+          const cur = prev[key];
+          if (!cur) return prev;
+          // the server is the reference for correctness
+          const next = { ...prev, [key]: { ...cur, correct: res.correct ?? cur.correct, synced: true } };
+          saveLocalQuiz(v.id, next);
+          return next;
+        });
+      })
+      .catch(() => {
+        // kept locally, re-sent at the next sync
+      });
+  };
+
   const handleTrack = (type: TrackedEventType) => {
     if (previewActive || !visitor || !selectedTip || selectedTip.placeholder) return;
     recordEvent(visitor.id, type, selectedTip.date, shareActive ? shareToken : null).catch(() => {});
@@ -703,6 +789,12 @@ function CalendarApp() {
                   <CheckCircle2 className="w-4 h-4 text-[#1F5A43]" />
                   {openedAvailableCount}/{progressDenominator} ouverte{openedAvailableCount > 1 ? 's' : ''}
                 </span>
+                {quizScore.total > 0 && (
+                  <span className="inline-flex items-center gap-1.5" title="Score cumulé aux quiz">
+                    <Trophy className="w-4 h-4 text-[#B7791F]" />
+                    Quiz {quizScore.correct}/{quizScore.total}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -858,6 +950,8 @@ function CalendarApp() {
           onNavigate={handleModalNavigate}
           onNotify={showToast}
           onTrack={handleTrack}
+          quizScore={quizScore}
+          onQuizAnswer={handleQuizAnswer}
         />
       )}
 

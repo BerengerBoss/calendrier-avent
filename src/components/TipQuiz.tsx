@@ -9,8 +9,10 @@ interface TipQuizProps {
   resetKey: string | number;
   accentHex: string;
   onTrack?: () => void;
-  /** Called on every answer (used to unlock the rest of the card). */
-  onAnswer?: () => void;
+  /** Called on every answer (unlocks the rest of the card, feeds the cumulative score). */
+  onAnswer?: (questionIndex: number, optionIndex: number, correct: boolean) => void;
+  /** Cumulative score over every quiz answered so far (first answers only). */
+  cumulative?: { correct: number; total: number };
 }
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -59,6 +61,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
   accentHex,
   onTrack,
   onAnswer,
+  cumulative,
 }) => {
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -84,7 +87,7 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
   const handlePick = (i: number) => {
     if (answered) return;
     setPicked(i);
-    onAnswer?.();
+    onAnswer?.(index, i, Boolean(options[i]?.correct));
     if (options[i]?.correct) {
       setScore((s) => s + 1);
       confetti({
@@ -121,13 +124,20 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
   // ---- Final screen ----
   if (done) {
     const perfect = score === total;
+    const cum = cumulative && cumulative.total > 0 ? cumulative : { correct: score, total };
     return (
       <div className="rounded-2xl border border-[#1C2B24]/15 bg-white p-5 text-center shadow-sm animate-pop-in">
         <div className="text-5xl animate-bounce-in">{perfect ? '🏆' : score > 0 ? '🎉' : '🤓'}</div>
-        <div className="font-display text-2xl font-bold mt-2">
-          {score} / {total} bonne{score > 1 ? 's' : ''} réponse{score > 1 ? 's' : ''}
+        <div className="text-xs font-semibold uppercase tracking-wider text-[#1C2B24]/55 mt-2">
+          Votre score cumulé
         </div>
-        <p className="text-sm text-[#475569] mt-1">
+        <div className="font-display text-3xl font-bold">
+          {cum.correct} / {cum.total} bonne{cum.correct > 1 ? 's' : ''} réponse{cum.correct > 1 ? 's' : ''}
+        </div>
+        <div className="text-sm text-[#1C2B24]/70 mt-0.5">
+          Ce quiz : {score} / {total}
+        </div>
+        <p className="text-sm text-[#475569] mt-2">
           {perfect
             ? 'Sans faute ! Vous êtes officiellement à jour sur l’IA. ✨'
             : score > 0
@@ -146,6 +156,9 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
         >
           <RotateCcw className="w-3.5 h-3.5" /> Rejouer
         </button>
+        <p className="text-[11px] text-[#1C2B24]/50 mt-2">
+          Le score cumulé garde vos premières réponses : rejouer ne le modifie pas.
+        </p>
       </div>
     );
   }
@@ -161,6 +174,11 @@ export const TipQuiz: React.FC<TipQuizProps> = ({
           <Trophy className="w-4 h-4 text-[#CA8A04]" />
           {quiz.title || (isTrueFalse ? 'Vrai ou faux ?' : 'À vous de jouer !')}
         </span>
+        {cumulative && cumulative.total > 0 && (
+          <span className="ml-auto text-xs font-semibold text-[#1C2B24]/70" title="Score cumulé sur tous les quiz">
+            Score : {cumulative.correct}/{cumulative.total}
+          </span>
+        )}
         {total > 1 && (
           <div className="flex items-center gap-1.5" aria-label={`Question ${index + 1} sur ${total}`}>
             {quiz.questions.map((_, i) => (

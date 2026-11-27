@@ -43,6 +43,9 @@ interface ScratchModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
   onNotify?: (msg: string) => void;
   onTrack?: (type: TrackedEventType) => void;
+  /** Cumulative quiz score across every card. */
+  quizScore?: { correct: number; total: number };
+  onQuizAnswer?: (questionIndex: number, optionIndex: number, correct: boolean) => void;
 }
 
 export const ScratchModal: React.FC<ScratchModalProps> = ({
@@ -58,6 +61,8 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
   onNavigate,
   onNotify,
   onTrack,
+  quizScore,
+  onQuizAnswer,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
@@ -469,7 +474,11 @@ export const ScratchModal: React.FC<ScratchModalProps> = ({
                 resetKey={tip.date}
                 accentHex={stylePreset.accentHex}
                 onTrack={() => onTrack?.('resource')}
-                onAnswer={() => setQuizAnswered(true)}
+                onAnswer={(qi, oi, ok) => {
+                  setQuizAnswered(true);
+                  onQuizAnswer?.(qi, oi, ok);
+                }}
+                cumulative={quizScore}
               />
             )}
 
